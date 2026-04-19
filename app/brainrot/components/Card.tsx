@@ -1,5 +1,7 @@
 "use client";
 
+import { forwardRef } from "react";
+
 export function SectionLabel({ children }: { children: React.ReactNode }) {
   return (
     <div className="font-heading btn-upper" style={{
@@ -19,9 +21,9 @@ export function Card({ children, accent, style }: { children: React.ReactNode; a
   );
 }
 
-export function Input(props: React.InputHTMLAttributes<HTMLInputElement>) {
+export const Input = forwardRef<HTMLInputElement, React.InputHTMLAttributes<HTMLInputElement>>(function Input(props, ref) {
   return (
-    <input {...props} style={{
+    <input ref={ref} {...props} style={{
       width: "100%", padding: "10px 12px", borderRadius: 8,
       background: "var(--color-bg)", border: "1px solid var(--color-border)",
       color: "var(--color-text)", fontSize: 13, outline: "none",
@@ -29,7 +31,7 @@ export function Input(props: React.InputHTMLAttributes<HTMLInputElement>) {
       ...props.style,
     }} />
   );
-}
+});
 
 export function Textarea(props: React.TextareaHTMLAttributes<HTMLTextAreaElement>) {
   return (

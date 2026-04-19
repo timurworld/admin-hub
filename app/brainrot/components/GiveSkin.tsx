@@ -2,7 +2,8 @@
 
 import { useEffect, useState } from "react";
 import { supabase, GAME_ID } from "@/lib/supabase";
-import { Card, SectionLabel, Input, Button } from "./Card";
+import { usePresence } from "@/lib/usePresence";
+import { Card, Input, Button } from "./Card";
 
 const SKINS = [
   "Noobini Lovini","Romantini Grandini","Lovini Lovini Lovini","Teddini & Robotini",
@@ -18,16 +19,26 @@ export default function GiveSkin() {
   const [selected, setSelected] = useState<string | null>(null);
   const [skin, setSkin] = useState("");
   const [success, setSuccess] = useState("");
+  const online = usePresence();
 
   useEffect(() => {
-    async function fetch() {
+    async function fetchPlayers() {
       const { data } = await supabase.from("leaderboard")
         .select("username, player_id")
-        .order("lifetime_points", { ascending: false }).limit(9);
+        .order("lifetime_points", { ascending: false }).limit(12);
       if (data) setPlayers(data);
     }
-    fetch();
+    fetchPlayers();
+    const i = setInterval(fetchPlayers, 10_000);
+    return () => clearInterval(i);
   }, []);
+
+  // Sort live players first
+  const sortedPlayers = [...players].sort((a, b) => {
+    const al = online.has(a.username.toLowerCase()) ? 0 : 1;
+    const bl = online.has(b.username.toLowerCase()) ? 0 : 1;
+    return al - bl;
+  });
 
   const send = async () => {
     if (!skin.trim()) return;
@@ -48,17 +59,33 @@ export default function GiveSkin() {
       <datalist id="skins">
         {SKINS.map(s => <option key={s} value={s} />)}
       </datalist>
-      <div style={{ fontSize: 10, color: "var(--color-text-muted)", marginBottom: 4 }}>Pick player (or leave empty for random):</div>
+      <div style={{ fontSize: 10, color: "var(--color-text-muted)", marginBottom: 4 }}>
+        Pick player (or leave empty for random) · <span style={{ color: "var(--color-green)" }}>● {online.size} live now</span>
+      </div>
       <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 4, marginBottom: 8 }}>
-        {players.map(p => (
-          <button key={p.player_id} onClick={() => setSelected(selected === p.username ? null : p.username)} style={{
-            padding: "6px 4px", borderRadius: 6,
-            background: selected === p.username ? "rgba(162,89,255,0.2)" : "var(--color-bg)",
-            border: `1px solid ${selected === p.username ? "var(--color-purple)" : "var(--color-border)"}`,
-            color: "#fff", fontSize: 10, cursor: "pointer",
-            overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap",
-          }}>{p.username}</button>
-        ))}
+        {sortedPlayers.map(p => {
+          const live = online.has(p.username.toLowerCase());
+          const isSelected = selected === p.username;
+          return (
+            <button key={p.player_id} onClick={() => setSelected(isSelected ? null : p.username)} style={{
+              padding: "6px 6px", borderRadius: 6,
+              background: isSelected ? "rgba(162,89,255,0.2)" : "var(--color-bg)",
+              border: `1px solid ${isSelected ? "var(--color-purple)" : "var(--color-border)"}`,
+              color: live ? "#fff" : "var(--color-text-muted)",
+              fontSize: 10, cursor: "pointer",
+              display: "flex", alignItems: "center", gap: 5, minWidth: 0,
+              opacity: live ? 1 : 0.7,
+            }}>
+              <span style={{
+                display: "inline-block", width: 6, height: 6, borderRadius: "50%",
+                background: live ? "var(--color-green)" : "var(--color-border)",
+                boxShadow: live ? "0 0 6px var(--color-green)" : "none",
+                flexShrink: 0,
+              }} />
+              <span style={{ overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{p.username}</span>
+            </button>
+          );
+        })}
       </div>
       <Button onClick={send} disabled={!skin.trim()} style={{ width: "100%" }}>
         {selected ? `🎁 Send to ${selected}` : "🎁 Send to random"}

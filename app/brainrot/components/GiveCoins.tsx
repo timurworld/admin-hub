@@ -2,13 +2,26 @@
 
 import { useEffect, useMemo, useRef, useState } from "react";
 import { supabase, GAME_ID } from "@/lib/supabase";
+import { usePresence } from "@/lib/usePresence";
 import { Card, SectionLabel, Input, Button } from "./Card";
 
 interface Player { username: string; lifetime_points: number; player_id: string; }
 
 const PRESETS = [1_000, 10_000, 100_000, 1_000_000];
 
+function LiveDot({ live }: { live: boolean }) {
+  return (
+    <span style={{
+      display: "inline-block", width: 8, height: 8, borderRadius: "50%",
+      background: live ? "var(--color-green)" : "var(--color-border)",
+      boxShadow: live ? "0 0 8px var(--color-green)" : "none",
+      flexShrink: 0,
+    }} />
+  );
+}
+
 export default function GiveCoins() {
+  const online = usePresence();
   const [players, setPlayers] = useState<Player[]>([]);
   const [query, setQuery] = useState("");
   const [picked, setPicked] = useState<Player | null>(null);
@@ -31,9 +44,15 @@ export default function GiveCoins() {
 
   const filtered = useMemo(() => {
     const q = query.trim().toLowerCase();
-    if (!q) return players.slice(0, 8);
-    return players.filter(p => p.username.toLowerCase().includes(q)).slice(0, 8);
-  }, [query, players]);
+    // Sort: live players first
+    const sortByLive = (a: Player, b: Player) => {
+      const al = online.has(a.username.toLowerCase()) ? 0 : 1;
+      const bl = online.has(b.username.toLowerCase()) ? 0 : 1;
+      return al - bl;
+    };
+    if (!q) return [...players].sort(sortByLive).slice(0, 8);
+    return players.filter(p => p.username.toLowerCase().includes(q)).sort(sortByLive).slice(0, 8);
+  }, [query, players, online]);
 
   const targetName = picked?.username || query.trim();
   const amt = parseInt(amount) || 0;
@@ -109,21 +128,27 @@ export default function GiveCoins() {
             boxShadow: "0 8px 24px rgba(0,0,0,0.4)",
             maxHeight: 280, overflow: "auto",
           }}>
-            {filtered.map(p => (
-              <button key={p.player_id} onMouseDown={() => pick(p)} style={{
-                display: "flex", justifyContent: "space-between", alignItems: "center",
-                width: "100%", padding: "8px 10px", borderRadius: 6, border: "none",
-                background: "transparent", color: "#fff", cursor: "pointer", fontSize: 12,
-                textAlign: "left",
-              }}
-              onMouseEnter={e => (e.currentTarget.style.background = "var(--color-bg)")}
-              onMouseLeave={e => (e.currentTarget.style.background = "transparent")}>
-                <span>{p.username}</span>
-                <span className="font-mono" style={{ fontSize: 10, color: "var(--color-amber)" }}>
-                  {(p.lifetime_points || 0).toLocaleString()}
-                </span>
-              </button>
-            ))}
+            {filtered.map(p => {
+              const live = online.has(p.username.toLowerCase());
+              return (
+                <button key={p.player_id} onMouseDown={() => pick(p)} style={{
+                  display: "flex", justifyContent: "space-between", alignItems: "center",
+                  gap: 8, width: "100%", padding: "8px 10px", borderRadius: 6, border: "none",
+                  background: "transparent", color: "#fff", cursor: "pointer", fontSize: 12,
+                  textAlign: "left",
+                }}
+                onMouseEnter={e => (e.currentTarget.style.background = "var(--color-bg)")}
+                onMouseLeave={e => (e.currentTarget.style.background = "transparent")}>
+                  <span style={{ display: "flex", alignItems: "center", gap: 8, minWidth: 0 }}>
+                    <LiveDot live={live} />
+                    <span style={{ overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{p.username}</span>
+                  </span>
+                  <span className="font-mono" style={{ fontSize: 10, color: live ? "var(--color-amber)" : "var(--color-text-muted)" }}>
+                    {(p.lifetime_points || 0).toLocaleString()}
+                  </span>
+                </button>
+              );
+            })}
           </div>
         )}
       </div>

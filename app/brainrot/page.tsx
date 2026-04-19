@@ -3,6 +3,7 @@
 import { useEffect, useState, useRef } from "react";
 import Link from "next/link";
 import { supabase, GAME_ID, EFFECTS } from "@/lib/supabase";
+import { usePresence } from "@/lib/usePresence";
 import LiveEventBlock from "./components/LiveEventBlock";
 import EventScheduler from "./components/EventScheduler";
 import GlobalMessage from "./components/GlobalMessage";
@@ -15,6 +16,7 @@ import LivePreview from "./components/LivePreview";
 export default function BrainrotAdmin() {
   const [eventActive, setEventActive] = useState(false);
   const [playerCount, setPlayerCount] = useState(0);
+  const online = usePresence();
 
   useEffect(() => {
     async function fetchEvent() {
@@ -74,10 +76,13 @@ export default function BrainrotAdmin() {
             display: "flex", alignItems: "center", gap: 8,
             padding: "6px 12px", borderRadius: 8,
             background: "var(--color-card)", border: "1px solid var(--color-border)",
-          }}>
+          }} title={`${online.size} live now · ${playerCount} total registered`}>
             <span className="pulse-dot" style={{ width: 6, height: 6, borderRadius: "50%", background: "var(--color-green)" }} />
-            <span className="font-mono" style={{ fontSize: 13, color: "#fff" }}>{playerCount}</span>
-            <span style={{ fontSize: 11, color: "var(--color-text-muted)" }}>players</span>
+            <span className="font-mono" style={{ fontSize: 13, color: "#fff" }}>{online.size}</span>
+            <span style={{ fontSize: 11, color: "var(--color-text-muted)" }}>live</span>
+            <span style={{ fontSize: 11, color: "var(--color-text-muted)" }}>·</span>
+            <span className="font-mono" style={{ fontSize: 12, color: "var(--color-text-muted)" }}>{playerCount}</span>
+            <span style={{ fontSize: 11, color: "var(--color-text-muted)" }}>total</span>
           </div>
           <button style={{
             padding: "6px 12px", borderRadius: 8, background: "transparent",
