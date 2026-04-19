@@ -1,82 +1,168 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { supabase, GAME_ID } from "@/lib/supabase";
 import { Card, SectionLabel, Input, Button } from "./Card";
 
 interface Player { username: string; lifetime_points: number; player_id: string; }
 
+const PRESETS = [1_000, 10_000, 100_000, 1_000_000];
+
 export default function GiveCoins() {
   const [players, setPlayers] = useState<Player[]>([]);
-  const [selected, setSelected] = useState<string | null>(null);
-  const [manual, setManual] = useState("");
+  const [query, setQuery] = useState("");
+  const [picked, setPicked] = useState<Player | null>(null);
   const [amount, setAmount] = useState("");
-  const [success, setSuccess] = useState("");
+  const [open, setOpen] = useState(false);
+  const [success, setSuccess] = useState<{ msg: string; ok: boolean } | null>(null);
+  const inputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
-    async function fetch() {
+    async function fetchPlayers() {
       const { data } = await supabase.from("leaderboard")
         .select("username, lifetime_points, player_id")
-        .order("lifetime_points", { ascending: false }).limit(9);
+        .order("lifetime_points", { ascending: false }).limit(100);
       if (data) setPlayers(data);
     }
-    fetch();
-    const int = setInterval(fetch, 5000);
+    fetchPlayers();
+    const int = setInterval(fetchPlayers, 10_000);
     return () => clearInterval(int);
   }, []);
 
+  const filtered = useMemo(() => {
+    const q = query.trim().toLowerCase();
+    if (!q) return players.slice(0, 8);
+    return players.filter(p => p.username.toLowerCase().includes(q)).slice(0, 8);
+  }, [query, players]);
+
+  const targetName = picked?.username || query.trim();
+  const amt = parseInt(amount) || 0;
+  const canGive = !!targetName && amt > 0;
+
   const give = async () => {
-    const target = selected || manual.trim();
-    const amt = parseInt(amount);
-    if (!target || !amt) return;
-
+    if (!canGive) return;
+    const target = targetName.toLowerCase();
     const { data: player } = await supabase.from("leaderboard")
-      .select("*").eq("username", target.toLowerCase()).maybeSingle();
+      .select("*").eq("username", target).maybeSingle();
 
-    if (player) {
-      const newTotal = (player.lifetime_points || 0) + amt;
-      await supabase.from("leaderboard").update({ lifetime_points: newTotal })
-        .eq("player_id", player.player_id);
-      await supabase.from("coin_gifts").insert({
-        game_id: GAME_ID, player_name: target, amount: amt,
-      });
-      setSuccess(`✓ Gave ${amt.toLocaleString()} coins to ${target}! Total: ${newTotal.toLocaleString()}`);
-    } else {
-      setSuccess(`⚠ Player "${target}" not found`);
+    if (!player) {
+      setSuccess({ ok: false, msg: `Player "${targetName}" not found` });
+      setTimeout(() => setSuccess(null), 4000);
+      return;
     }
-    setAmount(""); setManual(""); setSelected(null);
-    setTimeout(() => setSuccess(""), 4000);
+    const newTotal = (player.lifetime_points || 0) + amt;
+    await supabase.from("leaderboard").update({ lifetime_points: newTotal })
+      .eq("player_id", player.player_id);
+    await supabase.from("coin_gifts").insert({
+      game_id: GAME_ID, player_name: target, amount: amt,
+    });
+    setSuccess({ ok: true, msg: `Sent ${amt.toLocaleString()} coins to ${player.username}` });
+    setAmount(""); setQuery(""); setPicked(null); setOpen(false);
+    setTimeout(() => setSuccess(null), 4000);
+  };
+
+  const pick = (p: Player) => {
+    setPicked(p);
+    setQuery(p.username);
+    setOpen(false);
+    inputRef.current?.blur();
+  };
+
+  const clearPick = () => {
+    setPicked(null);
+    setQuery("");
+    setOpen(true);
+    inputRef.current?.focus();
   };
 
   return (
     <Card>
-      <SectionLabel>Giveaways — always available</SectionLabel>
-      <div style={{ fontSize: 12, color: "var(--color-text)", marginBottom: 8, fontWeight: 600 }}>Give Coins</div>
-      <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 4, marginBottom: 8 }}>
-        {players.map(p => (
-          <button key={p.player_id} onClick={() => setSelected(p.username)} style={{
-            padding: "6px 4px", borderRadius: 6,
-            background: selected === p.username ? "rgba(245,166,35,0.2)" : "var(--color-bg)",
-            border: `1px solid ${selected === p.username ? "var(--color-amber)" : "var(--color-border)"}`,
-            color: "#fff", fontSize: 10, cursor: "pointer",
-            textAlign: "left", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap",
+      <SectionLabel>Give Coins</SectionLabel>
+
+      {/* Player picker */}
+      <div style={{ position: "relative", marginBottom: 8 }}>
+        <div style={{ position: "relative" }}>
+          <Input
+            ref={inputRef}
+            placeholder="Search a player by name…"
+            value={query}
+            onChange={e => { setQuery(e.target.value); setPicked(null); setOpen(true); }}
+            onFocus={() => setOpen(true)}
+            onBlur={() => setTimeout(() => setOpen(false), 150)}
+            style={{ paddingRight: picked ? 32 : 12 }}
+          />
+          {picked && (
+            <button onClick={clearPick} aria-label="Clear" style={{
+              position: "absolute", right: 8, top: "50%", transform: "translateY(-50%)",
+              width: 20, height: 20, borderRadius: "50%", border: "none",
+              background: "var(--color-border)", color: "var(--color-text-muted)",
+              cursor: "pointer", fontSize: 12, lineHeight: "20px", padding: 0,
+            }}>×</button>
+          )}
+        </div>
+
+        {open && filtered.length > 0 && (
+          <div style={{
+            position: "absolute", top: "100%", left: 0, right: 0, marginTop: 4,
+            background: "var(--color-card)", border: "1px solid var(--color-border)",
+            borderRadius: 8, padding: 4, zIndex: 10,
+            boxShadow: "0 8px 24px rgba(0,0,0,0.4)",
+            maxHeight: 280, overflow: "auto",
           }}>
-            <div style={{ overflow: "hidden", textOverflow: "ellipsis" }}>{p.username}</div>
-            <div className="font-mono" style={{ fontSize: 9, color: "var(--color-amber)" }}>
-              {(p.lifetime_points || 0).toLocaleString()}
-            </div>
+            {filtered.map(p => (
+              <button key={p.player_id} onMouseDown={() => pick(p)} style={{
+                display: "flex", justifyContent: "space-between", alignItems: "center",
+                width: "100%", padding: "8px 10px", borderRadius: 6, border: "none",
+                background: "transparent", color: "#fff", cursor: "pointer", fontSize: 12,
+                textAlign: "left",
+              }}
+              onMouseEnter={e => (e.currentTarget.style.background = "var(--color-bg)")}
+              onMouseLeave={e => (e.currentTarget.style.background = "transparent")}>
+                <span>{p.username}</span>
+                <span className="font-mono" style={{ fontSize: 10, color: "var(--color-amber)" }}>
+                  {(p.lifetime_points || 0).toLocaleString()}
+                </span>
+              </button>
+            ))}
+          </div>
+        )}
+      </div>
+
+      {/* Amount + presets */}
+      <div style={{ display: "flex", gap: 4, marginBottom: 6 }}>
+        {PRESETS.map(v => (
+          <button key={v} onClick={() => setAmount(String(v))} style={{
+            flex: 1, padding: "6px 4px", borderRadius: 6,
+            border: `1px solid ${amount === String(v) ? "var(--color-amber)" : "var(--color-border)"}`,
+            background: amount === String(v) ? "rgba(245,166,35,0.15)" : "var(--color-bg)",
+            color: amount === String(v) ? "var(--color-amber)" : "var(--color-text-muted)",
+            cursor: "pointer", fontSize: 10, fontFamily: "var(--font-jetbrains)",
+          }}>
+            {v >= 1_000_000 ? `${v / 1_000_000}M` : v >= 1_000 ? `${v / 1_000}k` : v}
           </button>
         ))}
       </div>
-      <div style={{ fontSize: 10, color: "var(--color-text-muted)", textAlign: "center", margin: "6px 0" }}>— or type name —</div>
-      <div style={{ display: "flex", gap: 6, marginBottom: 8 }}>
-        <Input placeholder="player" value={manual} onChange={e => setManual(e.target.value)} style={{ flex: 1 }} />
-        <Input type="number" placeholder="coins" value={amount} onChange={e => setAmount(e.target.value)} style={{ width: 90 }} />
-      </div>
-      <Button onClick={give} disabled={(!selected && !manual.trim()) || !amount} style={{
-        width: "100%", background: "var(--color-amber)", color: "#000"
-      }}>Give Coins</Button>
-      {success && <div style={{ marginTop: 8, fontSize: 11, color: "var(--color-green)" }}>{success}</div>}
+      <Input type="number" placeholder="custom amount" value={amount}
+        onChange={e => setAmount(e.target.value)} style={{ marginBottom: 10 }} />
+
+      {/* Action */}
+      <Button onClick={give} disabled={!canGive} style={{
+        width: "100%", background: canGive ? "var(--color-amber)" : "var(--color-border)",
+        color: canGive ? "#000" : "var(--color-text-muted)",
+      }}>
+        {canGive
+          ? `🪙 Give ${amt.toLocaleString()} to ${targetName}`
+          : "Pick a player and amount"}
+      </Button>
+
+      {success && (
+        <div style={{
+          marginTop: 8, fontSize: 11,
+          color: success.ok ? "var(--color-green)" : "var(--color-red)",
+        }}>
+          {success.ok ? "✓ " : "⚠ "}{success.msg}
+        </div>
+      )}
     </Card>
   );
 }
