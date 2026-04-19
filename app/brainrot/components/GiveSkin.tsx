@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { supabase, GAME_ID } from "@/lib/supabase";
 import { usePresence } from "@/lib/usePresence";
 import { Card, Input, Button } from "./Card";
@@ -19,6 +19,9 @@ export default function GiveSkin() {
   const [selected, setSelected] = useState<string | null>(null);
   const [skin, setSkin] = useState("");
   const [success, setSuccess] = useState("");
+  const [sending, setSending] = useState(false);
+  const [armedAll, setArmedAll] = useState(false);
+  const armedTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const online = usePresence();
 
   useEffect(() => {
@@ -49,6 +52,41 @@ export default function GiveSkin() {
     });
     setSuccess(`🎁 "${skin}" sent to ${target}!`);
     setSkin(""); setSelected(null);
+    setTimeout(() => setSuccess(""), 4000);
+  };
+
+  const armOrFireAll = () => {
+    if (!skin.trim() || sending) return;
+    if (!armedAll) {
+      setArmedAll(true);
+      if (armedTimer.current) clearTimeout(armedTimer.current);
+      armedTimer.current = setTimeout(() => setArmedAll(false), 4000);
+      return;
+    }
+    if (armedTimer.current) { clearTimeout(armedTimer.current); armedTimer.current = null; }
+    setArmedAll(false);
+    sendAll();
+  };
+
+  const sendAll = async () => {
+    if (!skin.trim() || sending) return;
+    setSending(true);
+    const { data: all } = await supabase.from("leaderboard")
+      .select("username");
+    if (!all || all.length === 0) {
+      setSuccess("⚠ No players found");
+      setSending(false);
+      setTimeout(() => setSuccess(""), 4000);
+      return;
+    }
+    const recipients = all.filter(p => !p.username.toLowerCase().startsWith("testplayer"));
+    const gifts = recipients.map(p => ({
+      game_id: GAME_ID, player_name: p.username.toLowerCase(), skin_name: skin,
+    }));
+    await supabase.from("skin_gifts").insert(gifts);
+    setSuccess(`🎁 "${skin}" sent to ${recipients.length} players!`);
+    setSkin(""); setSelected(null);
+    setSending(false);
     setTimeout(() => setSuccess(""), 4000);
   };
 
@@ -89,6 +127,22 @@ export default function GiveSkin() {
       </div>
       <Button onClick={send} disabled={!skin.trim()} style={{ width: "100%" }}>
         {selected ? `🎁 Send to ${selected}` : "🎁 Send to random"}
+      </Button>
+      <Button onClick={armOrFireAll} disabled={!skin.trim() || sending} style={{
+        width: "100%", marginTop: 6,
+        background: armedAll
+          ? "var(--color-red)"
+          : skin.trim() && !sending ? "rgba(162,89,255,0.18)" : "var(--color-border)",
+        color: armedAll
+          ? "#fff"
+          : skin.trim() && !sending ? "var(--color-purple)" : "var(--color-text-muted)",
+        border: `1px solid ${armedAll ? "var(--color-red)" : skin.trim() && !sending ? "var(--color-purple)" : "var(--color-border)"}`,
+      }}>
+        {sending
+          ? "Sending…"
+          : armedAll
+            ? `⚠ Confirm — send "${skin}" to ALL`
+            : "🌍 Send to ALL players"}
       </Button>
       {success && <div style={{ marginTop: 8, fontSize: 11, color: "var(--color-green)" }}>{success}</div>}
     </Card>

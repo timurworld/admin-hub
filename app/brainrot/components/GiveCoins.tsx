@@ -8,6 +8,7 @@ import { Card, SectionLabel, Input, Button } from "./Card";
 interface Player { username: string; lifetime_points: number; player_id: string; }
 
 const PRESETS = [1_000, 10_000, 100_000, 1_000_000];
+const MAX_COINS = 1_000_000_000; // 1 billion cap per gift
 
 function LiveDot({ live }: { live: boolean }) {
   return (
@@ -28,6 +29,9 @@ export default function GiveCoins() {
   const [amount, setAmount] = useState("");
   const [open, setOpen] = useState(false);
   const [success, setSuccess] = useState<{ msg: string; ok: boolean } | null>(null);
+  const [sending, setSending] = useState(false);
+  const [armedAll, setArmedAll] = useState(false);
+  const armedTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const inputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
@@ -56,10 +60,13 @@ export default function GiveCoins() {
 
   const targetName = picked?.username || query.trim();
   const amt = parseInt(amount) || 0;
-  const canGive = !!targetName && amt > 0;
+  const overCap = amt > MAX_COINS;
+  const canGive = !!targetName && amt > 0 && !overCap;
+  const canGiveAll = amt > 0 && !overCap && !sending;
 
   const give = async () => {
     if (!canGive) return;
+    if (amt > MAX_COINS) return;
     const target = targetName.toLowerCase();
     const { data: player } = await supabase.from("leaderboard")
       .select("*").eq("username", target).maybeSingle();
@@ -77,6 +84,51 @@ export default function GiveCoins() {
     });
     setSuccess({ ok: true, msg: `Sent ${amt.toLocaleString()} coins to ${player.username}` });
     setAmount(""); setQuery(""); setPicked(null); setOpen(false);
+    setTimeout(() => setSuccess(null), 4000);
+  };
+
+  const armOrFireAll = () => {
+    if (!canGiveAll || sending) return;
+    if (amt > MAX_COINS) return;
+    if (!armedAll) {
+      setArmedAll(true);
+      if (armedTimer.current) clearTimeout(armedTimer.current);
+      armedTimer.current = setTimeout(() => setArmedAll(false), 4000);
+      return;
+    }
+    if (armedTimer.current) { clearTimeout(armedTimer.current); armedTimer.current = null; }
+    setArmedAll(false);
+    giveAll();
+  };
+
+  const giveAll = async () => {
+    if (!canGiveAll || sending) return;
+    if (amt > MAX_COINS) return;
+    setSending(true);
+    const { data: all } = await supabase.from("leaderboard")
+      .select("player_id, username, lifetime_points");
+    if (!all || all.length === 0) {
+      setSuccess({ ok: false, msg: "No players found" });
+      setSending(false);
+      setTimeout(() => setSuccess(null), 4000);
+      return;
+    }
+    // Skip leftover test accounts
+    const recipients = all.filter(p => !p.username.toLowerCase().startsWith("testplayer"));
+    // Bulk insert gift rows (one per player) so each client picks up the notification
+    const gifts = recipients.map(p => ({
+      game_id: GAME_ID, player_name: p.username.toLowerCase(), amount: amt,
+    }));
+    await supabase.from("coin_gifts").insert(gifts);
+    // Update leaderboard totals in parallel
+    await Promise.all(recipients.map(p =>
+      supabase.from("leaderboard")
+        .update({ lifetime_points: (p.lifetime_points || 0) + amt })
+        .eq("player_id", p.player_id)
+    ));
+    setSuccess({ ok: true, msg: `Sent ${amt.toLocaleString()} coins to ${recipients.length} players` });
+    setAmount(""); setQuery(""); setPicked(null); setOpen(false);
+    setSending(false);
     setTimeout(() => setSuccess(null), 4000);
   };
 
@@ -175,9 +227,31 @@ export default function GiveCoins() {
         width: "100%", background: canGive ? "var(--color-amber)" : "var(--color-border)",
         color: canGive ? "#000" : "var(--color-text-muted)",
       }}>
-        {canGive
-          ? `🪙 Give ${amt.toLocaleString()} to ${targetName}`
-          : "Pick a player and amount"}
+        {overCap
+          ? `⚠ Max ${MAX_COINS.toLocaleString()} per gift`
+          : canGive
+            ? `🪙 Give ${amt.toLocaleString()} to ${targetName}`
+            : "Pick a player and amount"}
+      </Button>
+      <Button onClick={armOrFireAll} disabled={!canGiveAll} style={{
+        width: "100%", marginTop: 6,
+        background: armedAll
+          ? "var(--color-red)"
+          : canGiveAll ? "rgba(162,89,255,0.18)" : "var(--color-border)",
+        color: armedAll
+          ? "#fff"
+          : canGiveAll ? "var(--color-purple)" : "var(--color-text-muted)",
+        border: `1px solid ${armedAll ? "var(--color-red)" : canGiveAll ? "var(--color-purple)" : "var(--color-border)"}`,
+      }}>
+        {sending
+          ? "Sending…"
+          : overCap
+            ? `⚠ Max ${MAX_COINS.toLocaleString()} per gift`
+            : armedAll
+              ? `⚠ Confirm — Give ${amt.toLocaleString()} to ALL`
+              : amt > 0
+                ? `🌍 Give ${amt.toLocaleString()} to ALL players`
+                : "Set amount to give to ALL"}
       </Button>
 
       {success && (
