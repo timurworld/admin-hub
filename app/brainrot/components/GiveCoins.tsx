@@ -67,9 +67,20 @@ export default function GiveCoins() {
   const give = async () => {
     if (!canGive) return;
     if (amt > MAX_COINS) return;
-    const target = targetName.toLowerCase();
-    const { data: player } = await supabase.from("leaderboard")
-      .select("*").eq("username", target).maybeSingle();
+
+    // If picked from dropdown we already have the row; otherwise look up case-insensitively
+    let player = picked as { player_id: string; username: string; lifetime_points: number } | null;
+    if (!player) {
+      const { data } = await supabase.from("leaderboard")
+        .select("*").ilike("username", targetName.trim()).maybeSingle();
+      player = data;
+    } else {
+      // refresh lifetime_points in case it changed since fetch
+      const { data } = await supabase.from("leaderboard")
+        .select("player_id, username, lifetime_points")
+        .eq("player_id", player.player_id).maybeSingle();
+      if (data) player = data;
+    }
 
     if (!player) {
       setSuccess({ ok: false, msg: `Player "${targetName}" not found` });
@@ -80,7 +91,7 @@ export default function GiveCoins() {
     await supabase.from("leaderboard").update({ lifetime_points: newTotal })
       .eq("player_id", player.player_id);
     await supabase.from("coin_gifts").insert({
-      game_id: GAME_ID, player_name: target, amount: amt,
+      game_id: GAME_ID, player_name: player.username.toLowerCase(), amount: amt,
     });
     setSuccess({ ok: true, msg: `Sent ${amt.toLocaleString()} coins to ${player.username}` });
     setAmount(""); setQuery(""); setPicked(null); setOpen(false);
