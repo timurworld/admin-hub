@@ -28,7 +28,7 @@ export default function GiveSkin() {
     async function fetchPlayers() {
       const { data } = await supabase.from("leaderboard")
         .select("username, player_id")
-        .order("lifetime_points", { ascending: false }).limit(12);
+        .order("lifetime_points", { ascending: false }).limit(50);
       if (data) setPlayers(data);
     }
     fetchPlayers();

@@ -54,8 +54,8 @@ export default function GiveCoins() {
       const bl = online.has(b.username.toLowerCase()) ? 0 : 1;
       return al - bl;
     };
-    if (!q) return [...players].sort(sortByLive).slice(0, 8);
-    return players.filter(p => p.username.toLowerCase().includes(q)).sort(sortByLive).slice(0, 8);
+    if (!q) return [...players].sort(sortByLive).slice(0, 50);
+    return players.filter(p => p.username.toLowerCase().includes(q)).sort(sortByLive).slice(0, 50);
   }, [query, players, online]);
 
   const targetName = picked?.username || query.trim();
