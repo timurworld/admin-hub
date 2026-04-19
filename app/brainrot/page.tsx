@@ -84,7 +84,10 @@ export default function BrainrotAdmin() {
             <span className="font-mono" style={{ fontSize: 12, color: "var(--color-text-muted)" }}>{playerCount}</span>
             <span style={{ fontSize: 11, color: "var(--color-text-muted)" }}>total</span>
           </div>
-          <button style={{
+          <button onClick={async () => {
+            await fetch("/api/auth/logout", { method: "POST" });
+            window.location.href = "/login";
+          }} style={{
             padding: "6px 12px", borderRadius: 8, background: "transparent",
             border: "1px solid var(--color-border)", color: "var(--color-text-muted)",
             cursor: "pointer", fontSize: 12,

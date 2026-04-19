@@ -39,6 +39,14 @@ export default function GameSelector() {
             fontWeight: 700, fontSize: 13, color: "#fff",
           }}>T</div>
           <span style={{ fontFamily: "var(--font-jetbrains)", fontSize: 13, color: "var(--color-text)" }}>tmoney</span>
+          <button onClick={async () => {
+            await fetch("/api/auth/logout", { method: "POST" });
+            window.location.href = "/login";
+          }} style={{
+            marginLeft: 8, padding: "6px 12px", borderRadius: 8, background: "transparent",
+            border: "1px solid var(--color-border)", color: "var(--color-text-muted)",
+            cursor: "pointer", fontSize: 12,
+          }}>Log out</button>
         </div>
       </header>
 
