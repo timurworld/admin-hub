@@ -1,62 +1,78 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { supabase, GAME_ID } from "@/lib/supabase";
-import { usePresence } from "@/lib/usePresence";
-import { Card, Input, Button } from "./Card";
-
-const SKINS = [
-  "Noobini Lovini","Romantini Grandini","Lovini Lovini Lovini","Teddini & Robotini",
-  "Noobini Partini","Cakini Presintini","Lovini Rosetti","Heartini Smilekurro",
-  "Dragini Partini","Cupidini Sahuroni","Rositti Tueletti","Birthdayini Cardini",
-  "Noobini Partyini","Noo Mio Heartini","Cupidini Hotspottini",
-];
+import { Card, SectionLabel, Input, Button } from "./Card";
 
 interface Player { username: string; player_id: string; }
 
+// Full catalog including V2 Sportini + Prestige skins.
+const SKINS = [
+  "Noobini Lovini", "Romantini Grandini", "Lovini Lovini Lovini", "Teddini & Robotini",
+  "Noobini Partini", "Cakini Presintini", "Lovini Rosetti", "Heartini Smilekurro",
+  "Dragini Partini", "Cupidini Sahuroni", "Rositti Tueletti", "Birthdayini Cardini",
+  "Cakini Elephantini", "Pizzini Partyini", "Noo Mio Heartini", "Cupidini Hotspottini",
+  "Stick Stick", "No My Pucks", "Hockey Bros",
+  "Sushiro & Soyaro", "Kingurini Orangini", "Auraberry",
+];
+
 export default function GiveSkin() {
   const [players, setPlayers] = useState<Player[]>([]);
-  const [selected, setSelected] = useState<string | null>(null);
+  const [query, setQuery] = useState("");
+  const [picked, setPicked] = useState<Player | null>(null);
   const [skin, setSkin] = useState("");
-  const [success, setSuccess] = useState("");
+  const [open, setOpen] = useState(false);
+  const [success, setSuccess] = useState<{ msg: string; ok: boolean } | null>(null);
   const [sending, setSending] = useState(false);
   const [armedAll, setArmedAll] = useState(false);
   const armedTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
-  const online = usePresence();
+  const inputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
     async function fetchPlayers() {
       const { data } = await supabase.from("leaderboard")
         .select("username, player_id")
-        .order("lifetime_points", { ascending: false }).limit(50);
+        .order("lifetime_points", { ascending: false }).limit(100);
       if (data) setPlayers(data);
     }
     fetchPlayers();
-    const i = setInterval(fetchPlayers, 10_000);
-    return () => clearInterval(i);
+    const int = setInterval(fetchPlayers, 10_000);
+    return () => clearInterval(int);
   }, []);
 
-  // Sort live players first
-  const sortedPlayers = [...players].sort((a, b) => {
-    const al = online.has(a.username.toLowerCase()) ? 0 : 1;
-    const bl = online.has(b.username.toLowerCase()) ? 0 : 1;
-    return al - bl;
-  });
+  const filtered = useMemo(() => {
+    const q = query.trim().toLowerCase();
+    if (!q) return players.slice(0, 50);
+    return players.filter(p => p.username.toLowerCase().includes(q)).slice(0, 50);
+  }, [query, players]);
+
+  const targetName = picked?.username || query.trim();
+  const canSend = !!targetName && !!skin.trim();
+  const canSendAll = !!skin.trim() && !sending;
 
   const send = async () => {
-    if (!skin.trim()) return;
-    const target = selected || (players[Math.floor(Math.random() * players.length)]?.username);
-    if (!target) return;
+    if (!canSend) return;
+    let player = picked;
+    if (!player) {
+      const { data } = await supabase.from("leaderboard")
+        .select("username, player_id").ilike("username", targetName.trim()).maybeSingle();
+      player = data;
+    }
+    if (!player) {
+      setSuccess({ ok: false, msg: `Player "${targetName}" not found` });
+      setTimeout(() => setSuccess(null), 4000);
+      return;
+    }
     await supabase.from("skin_gifts").insert({
-      game_id: GAME_ID, player_name: target, skin_name: skin,
+      game_id: GAME_ID, player_name: player.username.toLowerCase(), skin_name: skin,
     });
-    setSuccess(`🎁 "${skin}" sent to ${target}!`);
-    setSkin(""); setSelected(null);
-    setTimeout(() => setSuccess(""), 4000);
+    setSuccess({ ok: true, msg: `Sent "${skin}" to ${player.username}` });
+    setSkin(""); setQuery(""); setPicked(null); setOpen(false);
+    setTimeout(() => setSuccess(null), 4000);
   };
 
   const armOrFireAll = () => {
-    if (!skin.trim() || sending) return;
+    if (!canSendAll) return;
     if (!armedAll) {
       setArmedAll(true);
       if (armedTimer.current) clearTimeout(armedTimer.current);
@@ -69,14 +85,13 @@ export default function GiveSkin() {
   };
 
   const sendAll = async () => {
-    if (!skin.trim() || sending) return;
+    if (!canSendAll) return;
     setSending(true);
-    const { data: all } = await supabase.from("leaderboard")
-      .select("username");
+    const { data: all } = await supabase.from("leaderboard").select("username");
     if (!all || all.length === 0) {
-      setSuccess("⚠ No players found");
+      setSuccess({ ok: false, msg: "No players found" });
       setSending(false);
-      setTimeout(() => setSuccess(""), 4000);
+      setTimeout(() => setSuccess(null), 4000);
       return;
     }
     const recipients = all.filter(p => !p.username.toLowerCase().startsWith("testplayer"));
@@ -84,59 +99,99 @@ export default function GiveSkin() {
       game_id: GAME_ID, player_name: p.username.toLowerCase(), skin_name: skin,
     }));
     await supabase.from("skin_gifts").insert(gifts);
-    setSuccess(`🎁 "${skin}" sent to ${recipients.length} players!`);
-    setSkin(""); setSelected(null);
+    setSuccess({ ok: true, msg: `Sent "${skin}" to ${recipients.length} players` });
+    setSkin(""); setQuery(""); setPicked(null); setOpen(false);
     setSending(false);
-    setTimeout(() => setSuccess(""), 4000);
+    setTimeout(() => setSuccess(null), 4000);
+  };
+
+  const pick = (p: Player) => {
+    setPicked(p);
+    setQuery(p.username);
+    setOpen(false);
+    inputRef.current?.blur();
+  };
+
+  const clearPick = () => {
+    setPicked(null);
+    setQuery("");
+    setOpen(true);
+    inputRef.current?.focus();
   };
 
   return (
     <Card>
-      <div style={{ fontSize: 12, color: "var(--color-text)", marginBottom: 8, fontWeight: 600 }}>Give Skin</div>
-      <Input placeholder="Noobini Lovini" value={skin} onChange={e => setSkin(e.target.value)} list="skins" style={{ marginBottom: 8 }} />
+      <SectionLabel>Give Skin</SectionLabel>
+
+      {/* Player picker */}
+      <div style={{ position: "relative", marginBottom: 8 }}>
+        <div style={{ position: "relative" }}>
+          <Input
+            ref={inputRef}
+            placeholder="Search a player by name…"
+            value={query}
+            onChange={e => { setQuery(e.target.value); setPicked(null); setOpen(true); }}
+            onFocus={() => setOpen(true)}
+            onBlur={() => setTimeout(() => setOpen(false), 150)}
+            style={{ paddingRight: picked ? 32 : 12 }}
+          />
+          {picked && (
+            <button onClick={clearPick} aria-label="Clear" style={{
+              position: "absolute", right: 8, top: "50%", transform: "translateY(-50%)",
+              width: 20, height: 20, borderRadius: "50%", border: "none",
+              background: "var(--color-border)", color: "var(--color-text-muted)",
+              cursor: "pointer", fontSize: 12, lineHeight: "20px", padding: 0,
+            }}>×</button>
+          )}
+        </div>
+
+        {open && filtered.length > 0 && (
+          <div style={{
+            position: "absolute", top: "100%", left: 0, right: 0, marginTop: 4,
+            background: "var(--color-card)", border: "1px solid var(--color-border)",
+            borderRadius: 8, padding: 4, zIndex: 10,
+            boxShadow: "0 8px 24px rgba(0,0,0,0.4)",
+            maxHeight: 280, overflow: "auto",
+          }}>
+            {filtered.map(p => (
+              <button key={p.player_id} onMouseDown={() => pick(p)} style={{
+                display: "block", width: "100%", padding: "8px 10px",
+                borderRadius: 6, border: "none", background: "transparent",
+                color: "#fff", cursor: "pointer", fontSize: 12, textAlign: "left",
+              }}
+              onMouseEnter={e => (e.currentTarget.style.background = "var(--color-bg)")}
+              onMouseLeave={e => (e.currentTarget.style.background = "transparent")}
+              >{p.username}</button>
+            ))}
+          </div>
+        )}
+      </div>
+
+      {/* Skin name */}
+      <Input
+        placeholder="Skin name (e.g. Noobini Lovini)"
+        value={skin}
+        onChange={e => setSkin(e.target.value)}
+        list="skins"
+        style={{ marginBottom: 8 }}
+      />
       <datalist id="skins">
         {SKINS.map(s => <option key={s} value={s} />)}
       </datalist>
-      <div style={{ fontSize: 10, color: "var(--color-text-muted)", marginBottom: 4 }}>
-        Pick player (or leave empty for random) · <span style={{ color: "var(--color-green)" }}>● {online.size} live now</span>
-      </div>
-      <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 4, marginBottom: 8 }}>
-        {sortedPlayers.map(p => {
-          const live = online.has(p.username.toLowerCase());
-          const isSelected = selected === p.username;
-          return (
-            <button key={p.player_id} onClick={() => setSelected(isSelected ? null : p.username)} style={{
-              padding: "6px 6px", borderRadius: 6,
-              background: isSelected ? "rgba(162,89,255,0.2)" : "var(--color-bg)",
-              border: `1px solid ${isSelected ? "var(--color-purple)" : "var(--color-border)"}`,
-              color: live ? "#fff" : "var(--color-text-muted)",
-              fontSize: 10, cursor: "pointer",
-              display: "flex", alignItems: "center", gap: 5, minWidth: 0,
-              opacity: live ? 1 : 0.7,
-            }}>
-              <span style={{
-                display: "inline-block", width: 6, height: 6, borderRadius: "50%",
-                background: live ? "var(--color-green)" : "var(--color-border)",
-                boxShadow: live ? "0 0 6px var(--color-green)" : "none",
-                flexShrink: 0,
-              }} />
-              <span style={{ overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{p.username}</span>
-            </button>
-          );
-        })}
-      </div>
-      <Button onClick={send} disabled={!skin.trim()} style={{ width: "100%" }}>
-        {selected ? `🎁 Send to ${selected}` : "🎁 Send to random"}
+
+      <Button onClick={send} disabled={!canSend} style={{ width: "100%" }}>
+        {targetName && skin ? `🎁 Send "${skin}" to ${targetName}` : "🎁 Send"}
       </Button>
-      <Button onClick={armOrFireAll} disabled={!skin.trim() || sending} style={{
+
+      <Button onClick={armOrFireAll} disabled={!canSendAll} style={{
         width: "100%", marginTop: 6,
         background: armedAll
           ? "var(--color-red)"
-          : skin.trim() && !sending ? "rgba(162,89,255,0.18)" : "var(--color-border)",
+          : canSendAll ? "rgba(162,89,255,0.18)" : "var(--color-border)",
         color: armedAll
           ? "#fff"
-          : skin.trim() && !sending ? "var(--color-purple)" : "var(--color-text-muted)",
-        border: `1px solid ${armedAll ? "var(--color-red)" : skin.trim() && !sending ? "var(--color-purple)" : "var(--color-border)"}`,
+          : canSendAll ? "var(--color-purple)" : "var(--color-text-muted)",
+        border: `1px solid ${armedAll ? "var(--color-red)" : canSendAll ? "var(--color-purple)" : "var(--color-border)"}`,
       }}>
         {sending
           ? "Sending…"
@@ -144,7 +199,12 @@ export default function GiveSkin() {
             ? `⚠ Confirm — send "${skin}" to ALL`
             : "🌍 Send to ALL players"}
       </Button>
-      {success && <div style={{ marginTop: 8, fontSize: 11, color: "var(--color-green)" }}>{success}</div>}
+
+      {success && (
+        <div style={{ marginTop: 8, fontSize: 11, color: success.ok ? "var(--color-green)" : "var(--color-red)" }}>
+          {success.ok ? "✓ " : "⚠ "}{success.msg}
+        </div>
+      )}
     </Card>
   );
 }
