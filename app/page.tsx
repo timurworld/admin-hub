@@ -3,12 +3,14 @@
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { supabase } from "@/lib/supabase";
+import { getAdminPlayerCreds } from "@/lib/adminPlayerAuth";
 
 export default function GameSelector() {
   const router = useRouter();
   const [playerCount, setPlayerCount] = useState(0);
   const [hoveredLive, setHoveredLive] = useState(false);
   const [hoveredSoon, setHoveredSoon] = useState(false);
+  const [adminUsername, setAdminUsername] = useState<string | null>(null);
 
   useEffect(() => {
     async function fetchCount() {
@@ -17,6 +19,7 @@ export default function GameSelector() {
     }
     fetchCount();
     const interval = setInterval(fetchCount, 10000);
+    setAdminUsername(getAdminPlayerCreds()?.username ?? null);
     return () => clearInterval(interval);
   }, []);
 
@@ -37,8 +40,8 @@ export default function GameSelector() {
             background: "linear-gradient(135deg, var(--color-purple), var(--color-blue))",
             display: "flex", alignItems: "center", justifyContent: "center",
             fontWeight: 700, fontSize: 13, color: "#fff",
-          }}>T</div>
-          <span style={{ fontFamily: "var(--font-jetbrains)", fontSize: 13, color: "var(--color-text)" }}>tmoney</span>
+          }}>{(adminUsername || "A").charAt(0).toUpperCase()}</div>
+          <span style={{ fontFamily: "var(--font-jetbrains)", fontSize: 13, color: "var(--color-text)" }}>{adminUsername || "—"}</span>
           <button onClick={async () => {
             await fetch("/api/auth/logout", { method: "POST" });
             window.location.href = "/login";
@@ -52,7 +55,7 @@ export default function GameSelector() {
 
       {/* Body */}
       <main style={{ maxWidth: 1200, margin: "0 auto", padding: "48px 32px" }}>
-        <h1 className="font-heading" style={{ fontSize: 48, color: "#fff", marginBottom: 8 }}>Hey Timur 👋</h1>
+        <h1 className="font-heading" style={{ fontSize: 48, color: "#fff", marginBottom: 8 }}>Hey {adminUsername || "there"} 👋</h1>
         <p style={{ fontSize: 16, color: "var(--color-text-muted)", marginBottom: 40 }}>
           Pick a game to manage — run events, give skins, control the chaos.
         </p>

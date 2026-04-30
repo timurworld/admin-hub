@@ -1,36 +1,65 @@
-// V2 admin RPC helper. The new V2 actions (drop_event_spawn, locker_spawn,
-// wave_trigger, etc.) authenticate against the Brainrot in-game `players` row
-// for username='tmoney'. We need that PIN client-side here so we can pass it
-// to supabase.rpc(...). Stored in localStorage; prompt on first use.
+// V2 admin RPC helper. The V2 actions (drop_event_spawn, locker_spawn,
+// wave_trigger, etc.) authenticate against the Brainrot in-game `players`
+// row via assert_admin_auth(), which now gates on the players.is_admin
+// column instead of a hardcoded username (see scripts/sql/08_admin_role.sql).
+// We need both the operator's in-game username AND PIN client-side here so
+// we can pass them to supabase.rpc(...). Stored in localStorage; prompt on
+// first use.
 
-const KEY = "brainrot_admin_player_pin";
+export type AdminCreds = { username: string; pin: string };
 
-export function getAdminPlayerPin(): string | null {
+const USERNAME_KEY = "brainrot_admin_player_username";
+const PIN_KEY = "brainrot_admin_player_pin";
+
+export function getAdminPlayerCreds(): AdminCreds | null {
   if (typeof window === "undefined") return null;
-  return localStorage.getItem(KEY);
+  const username = localStorage.getItem(USERNAME_KEY)?.trim();
+  const pin = localStorage.getItem(PIN_KEY)?.trim();
+  if (!pin) return null;
+  // Backwards compat: pre-08 admin hubs only stored the PIN (with username
+  // implicitly "tmoney"). Surface those existing creds without re-prompting.
+  return { username: username || "tmoney", pin };
 }
 
-export function setAdminPlayerPin(pin: string): void {
+export function setAdminPlayerCreds(creds: AdminCreds): void {
   if (typeof window === "undefined") return;
-  localStorage.setItem(KEY, pin);
+  localStorage.setItem(USERNAME_KEY, creds.username);
+  localStorage.setItem(PIN_KEY, creds.pin);
+}
+
+export function clearAdminPlayerCreds(): void {
+  if (typeof window === "undefined") return;
+  localStorage.removeItem(USERNAME_KEY);
+  localStorage.removeItem(PIN_KEY);
+}
+
+// Prompt the operator for their in-game username + PIN if we don't have
+// them cached. Returns the creds or null if cancelled.
+export function ensureAdminPlayerCreds(): AdminCreds | null {
+  const cached = getAdminPlayerCreds();
+  if (cached) return cached;
+  if (typeof window === "undefined") return null;
+  const username = window.prompt(
+    "Admin in-game username (must have is_admin=true in the players table):",
+  );
+  if (!username || !username.trim()) return null;
+  const pin = window.prompt(`Admin PIN for ${username.trim()}:`);
+  if (!pin || !pin.trim()) return null;
+  const creds = { username: username.trim(), pin: pin.trim() };
+  setAdminPlayerCreds(creds);
+  return creds;
+}
+
+// Back-compat shims for any caller still using the pin-only API. Prefer
+// ensureAdminPlayerCreds() in new code.
+export function ensureAdminPlayerPin(): string | null {
+  return ensureAdminPlayerCreds()?.pin ?? null;
+}
+
+export function getAdminPlayerPin(): string | null {
+  return getAdminPlayerCreds()?.pin ?? null;
 }
 
 export function clearAdminPlayerPin(): void {
-  if (typeof window === "undefined") return;
-  localStorage.removeItem(KEY);
+  clearAdminPlayerCreds();
 }
-
-// Prompt the operator for their in-game tmoney PIN if we don't have it cached.
-// Returns the PIN or null if cancelled.
-export function ensureAdminPlayerPin(): string | null {
-  const cached = getAdminPlayerPin();
-  if (cached) return cached;
-  const entered = typeof window !== "undefined"
-    ? window.prompt("Enter your in-game Brainrot PIN (for tmoney) — saved locally for V2 admin actions:")
-    : null;
-  if (!entered || !entered.trim()) return null;
-  setAdminPlayerPin(entered.trim());
-  return entered.trim();
-}
-
-export const ADMIN_USERNAME = "tmoney";

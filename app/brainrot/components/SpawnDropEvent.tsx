@@ -3,7 +3,7 @@
 import { useEffect, useState } from "react";
 import { supabase } from "@/lib/supabase";
 import { Card, Input, Button, SectionLabel } from "./Card";
-import { ADMIN_USERNAME, ensureAdminPlayerPin, clearAdminPlayerPin } from "@/lib/adminPlayerAuth";
+import { ensureAdminPlayerCreds, clearAdminPlayerCreds } from "@/lib/adminPlayerAuth";
 
 // Skin catalog mirrors src/App.jsx CHARACTERS — kept in sync manually for now.
 // Only Sportini drops + a few others make sense as droppable; admin can pick any.
@@ -59,16 +59,16 @@ export default function SpawnDropEvent() {
 
   async function spawn() {
     setMsg("");
-    const pin = ensureAdminPlayerPin();
-    if (!pin) { setMsg("Need PIN to spawn."); return; }
+    const creds = ensureAdminPlayerCreds();
+    if (!creds) { setMsg("Need admin credentials to spawn."); return; }
     const poolEntries = Object.entries(pool)
       .map(([sid, total]) => ({ skin_id: parseInt(sid), total: total }))
       .filter(p => p.total > 0);
     if (poolEntries.length === 0) { setMsg("Pick at least one skin with stock."); return; }
     setBusy(true);
     const { error } = await supabase.rpc("drop_event_spawn", {
-      p_admin_username: ADMIN_USERNAME,
-      p_admin_pin: pin,
+      p_admin_username: creds.username,
+      p_admin_pin: creds.pin,
       p_name: name,
       p_pool: poolEntries,
       p_baseline_rate_inv: baselineRate,
@@ -81,7 +81,7 @@ export default function SpawnDropEvent() {
     setBusy(false);
     if (error) {
       setMsg("Error: " + error.message);
-      if (error.message.includes("unauthorized")) clearAdminPlayerPin();
+      if (/unauthorized|forbidden/i.test(error.message)) clearAdminPlayerCreds();
     } else {
       setMsg(`✓ Spawned "${name}" (${adminOnly ? "DRY-RUN" : "PUBLIC"})`);
       setTimeout(() => setMsg(""), 4000);
@@ -89,24 +89,24 @@ export default function SpawnDropEvent() {
   }
 
   async function endEvent(id: string) {
-    const pin = ensureAdminPlayerPin(); if (!pin) return;
+    const creds = ensureAdminPlayerCreds(); if (!creds) return;
     const { error } = await supabase.rpc("drop_event_end", {
-      p_admin_username: ADMIN_USERNAME, p_admin_pin: pin, p_event_id: id,
+      p_admin_username: creds.username, p_admin_pin: creds.pin, p_event_id: id,
     });
     if (error) setMsg("Error: " + error.message);
   }
 
   async function makePublic(id: string) {
-    const pin = ensureAdminPlayerPin(); if (!pin) return;
+    const creds = ensureAdminPlayerCreds(); if (!creds) return;
     await supabase.rpc("drop_event_make_public", {
-      p_admin_username: ADMIN_USERNAME, p_admin_pin: pin, p_event_id: id,
+      p_admin_username: creds.username, p_admin_pin: creds.pin, p_event_id: id,
     });
   }
 
   async function triggerWave(id: string, skinId: number) {
-    const pin = ensureAdminPlayerPin(); if (!pin) return;
+    const creds = ensureAdminPlayerCreds(); if (!creds) return;
     await supabase.rpc("wave_trigger", {
-      p_admin_username: ADMIN_USERNAME, p_admin_pin: pin,
+      p_admin_username: creds.username, p_admin_pin: creds.pin,
       p_event_id: id, p_skin_id: skinId,
     });
   }

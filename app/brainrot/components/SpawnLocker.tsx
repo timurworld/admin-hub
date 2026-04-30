@@ -3,7 +3,7 @@
 import { useEffect, useState } from "react";
 import { supabase } from "@/lib/supabase";
 import { Card, Input, Button, SectionLabel } from "./Card";
-import { ADMIN_USERNAME, ensureAdminPlayerPin, clearAdminPlayerPin } from "@/lib/adminPlayerAuth";
+import { ensureAdminPlayerCreds, clearAdminPlayerCreds } from "@/lib/adminPlayerAuth";
 
 // Mirror of game-side CHARACTERS — kept in sync manually.
 const ALL_SKINS = [
@@ -62,8 +62,8 @@ export default function SpawnLocker() {
 
   async function spawn() {
     setMsg("");
-    const pin = ensureAdminPlayerPin();
-    if (!pin) { setMsg("Need PIN."); return; }
+    const creds = ensureAdminPlayerCreds();
+    if (!creds) { setMsg("Need admin credentials."); return; }
     const recipeArr = Object.entries(recipe)
       .map(([sid, qty]) => ({ skin_id: parseInt(sid), qty }))
       .filter(r => r.qty > 0);
@@ -74,8 +74,8 @@ export default function SpawnLocker() {
     }
     setBusy(true);
     const { error } = await supabase.rpc("locker_spawn", {
-      p_admin_username: ADMIN_USERNAME,
-      p_admin_pin: pin,
+      p_admin_username: creds.username,
+      p_admin_pin: creds.pin,
       p_name: name,
       p_recipe: recipeArr,
       p_output_skin_id: outputSkinId,
@@ -86,7 +86,7 @@ export default function SpawnLocker() {
     setBusy(false);
     if (error) {
       setMsg("Error: " + error.message);
-      if (error.message.includes("unauthorized")) clearAdminPlayerPin();
+      if (/unauthorized|forbidden/i.test(error.message)) clearAdminPlayerCreds();
     } else {
       setMsg(`✓ Spawned "${name}" (${adminOnly ? "DRY-RUN" : "PUBLIC"})`);
       setTimeout(() => setMsg(""), 4000);
@@ -94,16 +94,16 @@ export default function SpawnLocker() {
   }
 
   async function takeOffline(id: string) {
-    const pin = ensureAdminPlayerPin(); if (!pin) return;
+    const creds = ensureAdminPlayerCreds(); if (!creds) return;
     await supabase.rpc("locker_take_offline", {
-      p_admin_username: ADMIN_USERNAME, p_admin_pin: pin, p_locker_id: id,
+      p_admin_username: creds.username, p_admin_pin: creds.pin, p_locker_id: id,
     });
   }
 
   async function makePublic(id: string) {
-    const pin = ensureAdminPlayerPin(); if (!pin) return;
+    const creds = ensureAdminPlayerCreds(); if (!creds) return;
     await supabase.rpc("locker_make_public", {
-      p_admin_username: ADMIN_USERNAME, p_admin_pin: pin, p_locker_id: id,
+      p_admin_username: creds.username, p_admin_pin: creds.pin, p_locker_id: id,
     });
   }
 

@@ -142,10 +142,10 @@ export default function LivePreview() {
         textAlign: "center", flexShrink: 0,
       }}>
         {target === "local"
-          ? "Pointed at your local dev game — log in as tmoney inside the iframe to see dry-run lockers/drops."
+          ? "Pointed at your local dev game — log in as an admin player inside the iframe to see dry-run lockers/drops."
           : target === "prod"
             ? "Pointed at production. Dry-run V2 events won't appear here unless prod is on V2."
-            : "Custom preview URL. Log in as tmoney inside to see admin-only events."}
+            : "Custom preview URL. Log in as an admin player inside to see admin-only events."}
       </div>
     </div>
   );
