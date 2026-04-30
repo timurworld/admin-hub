@@ -93,22 +93,42 @@ export default function SpawnDropEvent() {
     const { error } = await supabase.rpc("drop_event_end", {
       p_admin_username: creds.username, p_admin_pin: creds.pin, p_event_id: id,
     });
-    if (error) setMsg("Error: " + error.message);
+    if (error) {
+      setMsg("Error ending event: " + error.message);
+      if (/unauthorized|forbidden/i.test(error.message)) clearAdminPlayerCreds();
+    } else {
+      setMsg("✓ Event ended");
+      setTimeout(() => setMsg(""), 3000);
+    }
   }
 
   async function makePublic(id: string) {
     const creds = ensureAdminPlayerCreds(); if (!creds) return;
-    await supabase.rpc("drop_event_make_public", {
+    const { error } = await supabase.rpc("drop_event_make_public", {
       p_admin_username: creds.username, p_admin_pin: creds.pin, p_event_id: id,
     });
+    if (error) {
+      setMsg("Error making public: " + error.message);
+      if (/unauthorized|forbidden/i.test(error.message)) clearAdminPlayerCreds();
+    } else {
+      setMsg("✓ Now public");
+      setTimeout(() => setMsg(""), 3000);
+    }
   }
 
   async function triggerWave(id: string, skinId: number) {
     const creds = ensureAdminPlayerCreds(); if (!creds) return;
-    await supabase.rpc("wave_trigger", {
+    const { error } = await supabase.rpc("wave_trigger", {
       p_admin_username: creds.username, p_admin_pin: creds.pin,
       p_event_id: id, p_skin_id: skinId,
     });
+    if (error) {
+      setMsg("Error triggering wave: " + error.message);
+      if (/unauthorized|forbidden/i.test(error.message)) clearAdminPlayerCreds();
+    } else {
+      setMsg("✓ Wave triggered");
+      setTimeout(() => setMsg(""), 3000);
+    }
   }
 
   return (

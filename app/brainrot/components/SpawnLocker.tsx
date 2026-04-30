@@ -95,16 +95,30 @@ export default function SpawnLocker() {
 
   async function takeOffline(id: string) {
     const creds = ensureAdminPlayerCreds(); if (!creds) return;
-    await supabase.rpc("locker_take_offline", {
+    const { error } = await supabase.rpc("locker_take_offline", {
       p_admin_username: creds.username, p_admin_pin: creds.pin, p_locker_id: id,
     });
+    if (error) {
+      setMsg("Error taking offline: " + error.message);
+      if (/unauthorized|forbidden/i.test(error.message)) clearAdminPlayerCreds();
+    } else {
+      setMsg("✓ Taken offline");
+      setTimeout(() => setMsg(""), 3000);
+    }
   }
 
   async function makePublic(id: string) {
     const creds = ensureAdminPlayerCreds(); if (!creds) return;
-    await supabase.rpc("locker_make_public", {
+    const { error } = await supabase.rpc("locker_make_public", {
       p_admin_username: creds.username, p_admin_pin: creds.pin, p_locker_id: id,
     });
+    if (error) {
+      setMsg("Error making public: " + error.message);
+      if (/unauthorized|forbidden/i.test(error.message)) clearAdminPlayerCreds();
+    } else {
+      setMsg("✓ Now public");
+      setTimeout(() => setMsg(""), 3000);
+    }
   }
 
   return (
@@ -153,7 +167,7 @@ export default function SpawnLocker() {
 
         <label style={{ display: "flex", alignItems: "center", gap: 8, fontSize: 12, color: "#fff", cursor: "pointer" }}>
           <input type="checkbox" checked={adminOnly} onChange={e => setAdminOnly(e.target.checked)} />
-          Dry-run (only tmoney sees the locker)
+          Dry-run (only admin players see the locker)
         </label>
 
         <Button variant="success" onClick={spawn} disabled={busy}>
