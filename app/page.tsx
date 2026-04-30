@@ -3,7 +3,7 @@
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { supabase } from "@/lib/supabase";
-import { getAdminPlayerCreds } from "@/lib/adminPlayerAuth";
+import { getAdminPlayerCreds, clearAdminPlayerCreds } from "@/lib/adminPlayerAuth";
 
 export default function GameSelector() {
   const router = useRouter();
@@ -42,11 +42,22 @@ export default function GameSelector() {
             fontWeight: 700, fontSize: 13, color: "#fff",
           }}>{(adminUsername || "A").charAt(0).toUpperCase()}</div>
           <span style={{ fontFamily: "var(--font-jetbrains)", fontSize: 13, color: "var(--color-text)" }}>{adminUsername || "—"}</span>
+          {adminUsername && (
+            <button onClick={() => {
+              clearAdminPlayerCreds();
+              setAdminUsername(null);
+              window.location.reload();
+            }} title="Forgets the cached in-game username + PIN so the next admin action re-prompts. Use this if you typed the wrong PIN or want to switch admin accounts." style={{
+              marginLeft: 4, padding: "6px 10px", borderRadius: 8, background: "transparent",
+              border: "1px solid var(--color-border)", color: "var(--color-text-muted)",
+              cursor: "pointer", fontSize: 11,
+            }}>Reset admin PIN</button>
+          )}
           <button onClick={async () => {
             await fetch("/api/auth/logout", { method: "POST" });
             window.location.href = "/login";
           }} style={{
-            marginLeft: 8, padding: "6px 12px", borderRadius: 8, background: "transparent",
+            marginLeft: 4, padding: "6px 12px", borderRadius: 8, background: "transparent",
             border: "1px solid var(--color-border)", color: "var(--color-text-muted)",
             cursor: "pointer", fontSize: 12,
           }}>Log out</button>
