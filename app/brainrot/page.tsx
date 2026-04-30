@@ -195,7 +195,7 @@ export default function BrainrotAdmin() {
             <PlayerVote />
           </CollapsibleCard>
           <CollapsibleCard id="dj-effects" icon="🪩" title="DJ Effects" defaultOpen={false}>
-            <DJEffects locked={!eventActive} />
+            <DJEffects />
           </CollapsibleCard>
         </aside>
 

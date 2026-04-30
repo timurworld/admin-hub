@@ -4,7 +4,11 @@ import { useEffect, useState } from "react";
 import { supabase, GAME_ID, EFFECTS } from "@/lib/supabase";
 import { Card, SectionLabel } from "./Card";
 
-export default function DJEffects({ locked }: { locked: boolean }) {
+// DJ Effects are now always available — the game side renders effects
+// purely off the active_effects table, with no admin_events.active gate,
+// so admins can spin live whenever (e.g. Friday night session, gameday
+// hype, or just for fun). Previously locked behind a live event.
+export default function DJEffects() {
   const [active, setActive] = useState<Record<string, boolean>>({});
 
   useEffect(() => {
@@ -31,7 +35,6 @@ export default function DJEffects({ locked }: { locked: boolean }) {
   }, []);
 
   const toggle = async (effectId: string) => {
-    if (locked) return;
     const newActive = !active[effectId];
     const { data: existing } = await supabase.from("active_effects")
       .select("id").eq("game_id", GAME_ID).eq("effect_id", effectId).maybeSingle();
@@ -56,25 +59,19 @@ export default function DJEffects({ locked }: { locked: boolean }) {
   };
 
   return (
-    <Card style={locked ? { opacity: 0.4 } : undefined}>
+    <Card>
       <SectionLabel>DJ effects</SectionLabel>
-      {locked && (
-        <div style={{
-          fontSize: 11, color: "var(--color-text-muted)", textAlign: "center",
-          marginBottom: 8, padding: 8, background: "var(--color-bg)", borderRadius: 6,
-        }}>⬆ Start live event to unlock</div>
-      )}
       <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 6 }}>
         {EFFECTS.map(fx => {
           const on = active[fx.id];
           return (
-            <button key={fx.id} onClick={() => toggle(fx.id)} disabled={locked}
+            <button key={fx.id} onClick={() => toggle(fx.id)}
               style={{
                 padding: "8px 10px", borderRadius: 8,
                 background: on ? `${fx.color}22` : "var(--color-bg)",
                 border: `1px solid ${on ? fx.color : "var(--color-border)"}`,
                 color: "#fff", display: "flex", alignItems: "center", gap: 6,
-                cursor: locked ? "not-allowed" : "pointer",
+                cursor: "pointer",
                 transition: "all 0.15s", fontSize: 11,
               }}>
               <span style={{ fontSize: 16 }}>{fx.emoji}</span>
