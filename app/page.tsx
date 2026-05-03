@@ -3,8 +3,7 @@
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { supabase } from "@/lib/supabase";
-import { getAdminPlayerCreds, setAdminPlayerCreds, clearAdminPlayerCreds } from "@/lib/adminPlayerAuth";
-import { useAdminTier } from "@/lib/useAdminTier";
+import { clearAdminPlayerCreds } from "@/lib/adminPlayerAuth";
 import { useSessionRole } from "@/lib/useSessionRole";
 
 export default function GameSelector() {
@@ -12,11 +11,6 @@ export default function GameSelector() {
   const [playerCount, setPlayerCount] = useState(0);
   const [hoveredLive, setHoveredLive] = useState(false);
   const [hoveredSoon, setHoveredSoon] = useState(false);
-  const [adminUsername, setAdminUsername] = useState<string | null>(null);
-  const { tier, isGodAdmin } = useAdminTier();
-  // Site session role is the security boundary. Switch User and god UI are
-  // gated on this — useAdminTier only reflects the in-game player and would
-  // let any session escalate by typing emoney's PIN.
   const { role: sessionRole, isGodAdmin: isGodSession } = useSessionRole();
   const siteUsername = sessionRole === "god" ? "EmoneyAdmin" : sessionRole === "admin" ? "TmoneyAdmin" : "—";
 
@@ -27,20 +21,17 @@ export default function GameSelector() {
     }
     fetchCount();
     const interval = setInterval(fetchCount, 10000);
-    setAdminUsername(getAdminPlayerCreds()?.username ?? null);
     return () => clearInterval(interval);
   }, []);
 
-  const switchAdminUser = () => {
-    const next = window.prompt(
-      `Switch admin (currently: ${adminUsername ?? "none"}).\nEnter the new in-game username:`,
-      "",
-    );
-    if (!next || !next.trim()) return;
-    const pin = window.prompt(`PIN for ${next.trim()}:`);
-    if (!pin || !pin.trim()) return;
-    setAdminPlayerCreds({ username: next.trim(), pin: pin.trim() });
-    window.location.reload();
+  // Switch Admin: only god (EmoneyAdmin) sessions can use this. Logs out and
+  // bounces to /login so the operator can sign in as TmoneyAdmin (or back as
+  // EmoneyAdmin). Cached in-game creds are wiped so the next session fetches
+  // its own from /api/admin-creds.
+  const switchAdmin = async () => {
+    clearAdminPlayerCreds();
+    await fetch("/api/auth/logout", { method: "POST" });
+    window.location.href = "/login";
   };
 
   return (
@@ -61,43 +52,22 @@ export default function GameSelector() {
             display: "flex", alignItems: "center", justifyContent: "center",
             fontWeight: 700, fontSize: 13, color: "#fff",
           }}>{siteUsername.charAt(0).toUpperCase()}</div>
-          {isGodSession ? (
-            <>
-              <button onClick={switchAdminUser} title="Switch the in-game admin user (changes which tools are visible across all games)" style={{
-                display: "flex", alignItems: "center", gap: 6,
-                marginLeft: 4, padding: "6px 10px", borderRadius: 8, background: "var(--color-card)",
-                border: `1px solid ${isGodAdmin ? "rgba(255,77,77,0.5)" : "var(--color-border)"}`,
-                color: "#fff", cursor: "pointer", fontSize: 12,
-              }}>
-                <span style={{ fontSize: 13 }}>{isGodAdmin ? "👑" : tier >= 1 ? "🛡️" : "👤"}</span>
-                <span className="font-mono">{adminUsername || "not set"}</span>
-                <span style={{ fontSize: 10, color: "var(--color-text-muted)" }}>(tier {tier})</span>
-                <span style={{ fontSize: 10, color: "var(--color-text-muted)", marginLeft: 4 }}>switch</span>
-              </button>
-              {adminUsername && (
-                <button onClick={() => {
-                  clearAdminPlayerCreds();
-                  setAdminUsername(null);
-                  window.location.reload();
-                }} title="Forgets the cached in-game username + PIN so the next admin action re-prompts." style={{
-                  marginLeft: 4, padding: "6px 10px", borderRadius: 8, background: "transparent",
-                  border: "1px solid var(--color-border)", color: "var(--color-text-muted)",
-                  cursor: "pointer", fontSize: 11,
-                }}>Reset admin PIN</button>
-              )}
-            </>
-          ) : (
-            // Non-god sessions see only their site identity. No switch, no
-            // tier escalation surface.
-            <span className="font-mono" style={{
-              display: "flex", alignItems: "center", gap: 6,
-              marginLeft: 4, padding: "6px 10px", borderRadius: 8,
-              background: "var(--color-card)", border: "1px solid var(--color-border)",
-              color: "#fff", fontSize: 12,
-            }}>
-              <span style={{ fontSize: 13 }}>🛡️</span>
-              {siteUsername}
-            </span>
+          <span className="font-mono" style={{
+            display: "flex", alignItems: "center", gap: 6,
+            marginLeft: 4, padding: "6px 10px", borderRadius: 8,
+            background: "var(--color-card)",
+            border: `1px solid ${isGodSession ? "rgba(255,77,77,0.5)" : "var(--color-border)"}`,
+            color: "#fff", fontSize: 12,
+          }}>
+            <span style={{ fontSize: 13 }}>{isGodSession ? "👑" : "🛡️"}</span>
+            {siteUsername}
+          </span>
+          {isGodSession && (
+            <button onClick={switchAdmin} title="Log out and return to the login screen so you can sign in as the other admin." style={{
+              marginLeft: 4, padding: "6px 12px", borderRadius: 8, background: "transparent",
+              border: "1px solid var(--color-border)", color: "var(--color-text-muted)",
+              cursor: "pointer", fontSize: 12,
+            }}>Switch admin</button>
           )}
           <button onClick={async () => {
             await fetch("/api/auth/logout", { method: "POST" });
@@ -112,7 +82,7 @@ export default function GameSelector() {
 
       {/* Body */}
       <main style={{ maxWidth: 1200, margin: "0 auto", padding: "48px 32px" }}>
-        <h1 className="font-heading" style={{ fontSize: 48, color: "#fff", marginBottom: 8 }}>Hey {adminUsername || "there"} 👋</h1>
+        <h1 className="font-heading" style={{ fontSize: 48, color: "#fff", marginBottom: 8 }}>Hey {sessionRole === "god" ? "Emoney" : sessionRole === "admin" ? "Tmoney" : "there"} 👋</h1>
         <p style={{ fontSize: 16, color: "var(--color-text-muted)", marginBottom: 40 }}>
           Pick a game to manage — run events, give skins, control the chaos.
         </p>

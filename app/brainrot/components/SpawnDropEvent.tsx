@@ -114,7 +114,7 @@ export default function SpawnDropEvent() {
 
   async function spawn() {
     setMsg("");
-    const creds = ensureAdminPlayerCreds();
+    const creds = await ensureAdminPlayerCreds();
     if (!creds) { setMsg("Need admin credentials to spawn."); return; }
     const poolEntries = Object.entries(pool)
       .map(([sid, total]) => ({ skin_id: parseInt(sid), total: total }))
@@ -144,7 +144,7 @@ export default function SpawnDropEvent() {
   }
 
   async function endEvent(id: string) {
-    const creds = ensureAdminPlayerCreds(); if (!creds) return;
+    const creds = await ensureAdminPlayerCreds(); if (!creds) return;
     const { error } = await supabase.rpc("drop_event_end", {
       p_admin_username: creds.username, p_admin_pin: creds.pin, p_event_id: id,
     });
@@ -158,7 +158,7 @@ export default function SpawnDropEvent() {
   }
 
   async function makePublic(id: string) {
-    const creds = ensureAdminPlayerCreds(); if (!creds) return;
+    const creds = await ensureAdminPlayerCreds(); if (!creds) return;
     const { error } = await supabase.rpc("drop_event_make_public", {
       p_admin_username: creds.username, p_admin_pin: creds.pin, p_event_id: id,
     });
@@ -172,7 +172,7 @@ export default function SpawnDropEvent() {
   }
 
   async function triggerWave(id: string, skinId: number) {
-    const creds = ensureAdminPlayerCreds(); if (!creds) return;
+    const creds = await ensureAdminPlayerCreds(); if (!creds) return;
     const { error } = await supabase.rpc("wave_trigger", {
       p_admin_username: creds.username, p_admin_pin: creds.pin,
       p_event_id: id, p_skin_id: skinId,

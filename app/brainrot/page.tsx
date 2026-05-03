@@ -17,9 +17,8 @@ import SpawnLocker from "./components/SpawnLocker";
 import StatusStrip from "./components/StatusStrip";
 import CollapsibleCard from "./components/CollapsibleCard";
 import BotTools from "./components/BotTools";
-import { useAdminTier } from "@/lib/useAdminTier";
 import { useSessionRole } from "@/lib/useSessionRole";
-import { getAdminPlayerCreds, setAdminPlayerCreds } from "@/lib/adminPlayerAuth";
+import { clearAdminPlayerCreds } from "@/lib/adminPlayerAuth";
 
 const SPLIT_KEY = "brainrot_admin_split_px";
 const MIN_LEFT = 320;
@@ -79,30 +78,17 @@ export default function BrainrotAdmin() {
   const [eventActive, setEventActive] = useState(false);
   const [playerCount, setPlayerCount] = useState(0);
   const online = usePresence();
-  // In-game tier (display only — for the badge inside the Switch User button).
-  const { tier, isGodAdmin } = useAdminTier();
-  // Site session role IS the security boundary. God Admin section + Switch
-  // User button render only when EmoneyAdmin is logged in. TmoneyAdmin sees
-  // a static identity label and cannot escalate.
+  // Site session role is the source of truth for what the operator can see.
+  // God Admin section + Switch Admin button render only for EmoneyAdmin.
   const { role: sessionRole, isGodAdmin: isGodSession } = useSessionRole();
   const siteUsername = sessionRole === "god" ? "EmoneyAdmin" : sessionRole === "admin" ? "TmoneyAdmin" : "—";
-  // Track the cached admin username so the header can show who's logged in
-  // and the Switch User button can prompt for a swap.
-  const [currentAdminUsername, setCurrentAdminUsername] = useState<string | null>(null);
-  useEffect(() => {
-    setCurrentAdminUsername(getAdminPlayerCreds()?.username ?? null);
-  }, []);
 
-  const switchAdminUser = () => {
-    const next = window.prompt(
-      `Switch admin (currently: ${currentAdminUsername ?? "none"}).\nEnter the new in-game username:`,
-      "",
-    );
-    if (!next || !next.trim()) return;
-    const pin = window.prompt(`PIN for ${next.trim()}:`);
-    if (!pin || !pin.trim()) return;
-    setAdminPlayerCreds({ username: next.trim(), pin: pin.trim() });
-    window.location.reload();
+  // Switch Admin: log out + bounce to /login so the operator can sign in
+  // as the other admin. Only god (EmoneyAdmin) can do this.
+  const switchAdmin = async () => {
+    clearAdminPlayerCreds();
+    await fetch("/api/auth/logout", { method: "POST" });
+    window.location.href = "/login";
   };
 
   // Resizable split between controls (left) and live preview (right). Persisted.
@@ -200,32 +186,24 @@ export default function BrainrotAdmin() {
             <span className="font-mono" style={{ fontSize: 12, color: "var(--color-text-muted)" }}>{playerCount}</span>
             <span style={{ fontSize: 11, color: "var(--color-text-muted)" }}>total</span>
           </div>
-          {/* Switch admin user — only visible to EmoneyAdmin sessions.
-              TmoneyAdmin gets a static identity badge instead, so they can't
-              swap into emoney's PIN to escalate. The in-game tier badge in
-              the button is informational; the security check is on sessionRole. */}
-          {isGodSession ? (
-            <button onClick={switchAdminUser} title="Switch the in-game admin user (changes which tools are visible)" style={{
-              display: "flex", alignItems: "center", gap: 6,
-              padding: "6px 10px", borderRadius: 8, background: "var(--color-card)",
-              border: `1px solid ${isGodAdmin ? "rgba(255,77,77,0.5)" : "var(--color-border)"}`,
-              color: "#fff", cursor: "pointer", fontSize: 12,
-            }}>
-              <span style={{ fontSize: 13 }}>{isGodAdmin ? "👑" : tier >= 1 ? "🛡️" : "👤"}</span>
-              <span className="font-mono">{currentAdminUsername || "not set"}</span>
-              <span style={{ fontSize: 10, color: "var(--color-text-muted)" }}>(tier {tier})</span>
-              <span style={{ fontSize: 10, color: "var(--color-text-muted)", marginLeft: 4 }}>switch</span>
-            </button>
-          ) : (
-            <span className="font-mono" style={{
-              display: "flex", alignItems: "center", gap: 6,
-              padding: "6px 10px", borderRadius: 8,
-              background: "var(--color-card)", border: "1px solid var(--color-border)",
-              color: "#fff", fontSize: 12,
-            }}>
-              <span style={{ fontSize: 13 }}>🛡️</span>
-              {siteUsername}
-            </span>
+          {/* Site identity badge. Border tints red for god (EmoneyAdmin) so
+              the elevated session is visually obvious during a live show. */}
+          <span className="font-mono" style={{
+            display: "flex", alignItems: "center", gap: 6,
+            padding: "6px 10px", borderRadius: 8,
+            background: "var(--color-card)",
+            border: `1px solid ${isGodSession ? "rgba(255,77,77,0.5)" : "var(--color-border)"}`,
+            color: "#fff", fontSize: 12,
+          }}>
+            <span style={{ fontSize: 13 }}>{isGodSession ? "👑" : "🛡️"}</span>
+            {siteUsername}
+          </span>
+          {isGodSession && (
+            <button onClick={switchAdmin} title="Log out and return to the login screen so you can sign in as the other admin." style={{
+              padding: "6px 12px", borderRadius: 8, background: "transparent",
+              border: "1px solid var(--color-border)", color: "var(--color-text-muted)",
+              cursor: "pointer", fontSize: 12,
+            }}>Switch admin</button>
           )}
           <button onClick={async () => {
             await fetch("/api/auth/logout", { method: "POST" });

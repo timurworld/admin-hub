@@ -118,7 +118,7 @@ export default function SpawnLocker() {
 
   async function spawn() {
     setMsg("");
-    const creds = ensureAdminPlayerCreds();
+    const creds = await ensureAdminPlayerCreds();
     if (!creds) { setMsg("Need admin credentials."); return; }
     const recipeArr = Object.entries(recipe)
       .map(([sid, qty]) => ({ skin_id: parseInt(sid), qty }))
@@ -150,7 +150,7 @@ export default function SpawnLocker() {
   }
 
   async function takeOffline(id: string) {
-    const creds = ensureAdminPlayerCreds(); if (!creds) return;
+    const creds = await ensureAdminPlayerCreds(); if (!creds) return;
     const { error } = await supabase.rpc("locker_take_offline", {
       p_admin_username: creds.username, p_admin_pin: creds.pin, p_locker_id: id,
     });
@@ -164,7 +164,7 @@ export default function SpawnLocker() {
   }
 
   async function makePublic(id: string) {
-    const creds = ensureAdminPlayerCreds(); if (!creds) return;
+    const creds = await ensureAdminPlayerCreds(); if (!creds) return;
     const { error } = await supabase.rpc("locker_make_public", {
       p_admin_username: creds.username, p_admin_pin: creds.pin, p_locker_id: id,
     });

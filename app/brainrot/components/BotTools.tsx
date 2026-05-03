@@ -2,9 +2,9 @@
 
 // God-admin-only bot tools. Currently a stub — UI shell ready, driver logic
 // (spawn N bots, stop all, etc.) lands in a follow-up. Visibility is gated
-// in app/brainrot/page.tsx via useAdminTier().isGodAdmin so this component
+// in app/brainrot/page.tsx via useSessionRole().isGodAdmin so this component
 // itself doesn't have to enforce — by the time it renders, the parent has
-// already confirmed god-tier auth.
+// already confirmed an EmoneyAdmin site session.
 
 import { Card, SectionLabel, Button } from "./Card";
 
