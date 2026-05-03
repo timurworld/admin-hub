@@ -57,10 +57,12 @@ function Section({ id, icon, accent, title, children }: {
           textShadow: `0 0 14px ${a}88`,
         }}>{title}</span>
       </div>
-      {/* Body — cards sit inside, on the lighter grey backdrop */}
+      {/* Body — cards sit inside, on the lighter grey backdrop. More
+          generous padding-bottom so the last card's colored left stripe
+          doesn't visually touch the section's bottom border. */}
       <div style={{
-        padding: 10,
-        display: "flex", flexDirection: "column", gap: 6,
+        padding: "12px 14px 16px",
+        display: "flex", flexDirection: "column", gap: 8,
       }}>{children}</div>
     </div>
   );
