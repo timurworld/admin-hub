@@ -207,10 +207,15 @@ export default function BrainrotAdmin() {
             </CollapsibleCard>
           </Section>
 
-          {/* 2. BROADCAST — always-available communication, not tied to live show. */}
-          <Section id="section-broadcast" icon="📣" accent="#ffa630" title="Broadcast">
+          {/* 2. BROADCASTS & VOTES — push content to all players. Both
+              broadcasts and player votes share the "fan out to everyone"
+              shape, so they belong together. */}
+          <Section id="section-broadcast" icon="📣" accent="#ffa630" title="Broadcasts & Votes">
             <CollapsibleCard id="global-message" icon="📢" title="Broadcast Message" defaultOpen={false} forceOpen={eventActive}>
               <GlobalMessage />
+            </CollapsibleCard>
+            <CollapsibleCard id="player-vote" icon="🗳" title="Player Vote" defaultOpen={false}>
+              <PlayerVote />
             </CollapsibleCard>
           </Section>
 
@@ -234,11 +239,8 @@ export default function BrainrotAdmin() {
             </CollapsibleCard>
           </Section>
 
-          {/* 5. DJ BOOTH — interactive live-show tools (vote + effects). */}
+          {/* 5. DJ BOOTH — visual flair tools used during a live show. */}
           <Section id="section-djbooth" icon="🎵" accent="#00d4ff" title="DJ Booth">
-            <CollapsibleCard id="player-vote" icon="🗳" title="Player Vote" defaultOpen={false}>
-              <PlayerVote />
-            </CollapsibleCard>
             <CollapsibleCard id="dj-effects" icon="🪩" title="DJ Effects" defaultOpen={false}>
               <DJEffects />
             </CollapsibleCard>
