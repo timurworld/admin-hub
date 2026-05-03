@@ -158,7 +158,7 @@ export default function SpawnLocker() {
         <div style={{ fontSize: 11, color: "var(--color-text-muted)", marginTop: 6 }}>
           <strong style={{ color: "#fff" }}>Recipe ingredients</strong> · pick any 2–3 skins · qty per skin
         </div>
-        <div style={{ maxHeight: 280, overflowY: "auto", border: "1px solid var(--color-border)", borderRadius: 6, padding: 6 }}>
+        <div style={{ border: "1px solid var(--color-border)", borderRadius: 6, padding: 6 }}>
           {ALL_SKINS.map(s => (
             <div key={"r" + s.id} style={{ display: "flex", alignItems: "center", gap: 8, padding: "2px 0" }}>
               <span style={{ flex: 1, fontSize: 12, color: "#fff", display: "flex", justifyContent: "space-between", gap: 8 }}>

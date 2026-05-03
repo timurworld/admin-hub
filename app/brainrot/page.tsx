@@ -38,7 +38,10 @@ function Section({ id, icon, accent, title, children }: {
       border: `1px solid ${a}40`,                            // colored ring
       borderTop: `4px solid ${a}`,                           // bold top stripe
       boxShadow: `0 6px 24px ${a}14, 0 0 0 1px rgba(0,0,0,0.4) inset`,
-      overflow: "hidden",
+      // No overflow:hidden — when a card inside is OPEN its body is tall,
+      // and clipping it makes the tools inaccessible. Cards render at full
+      // natural height; the aside scrolls if the column gets long.
+      flexShrink: 0,
     }}>
       {/* Header bar — black-ish glassy strip with glowing icon + bold label */}
       <div id={id} style={{
