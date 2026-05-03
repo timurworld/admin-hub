@@ -3,7 +3,8 @@
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { supabase } from "@/lib/supabase";
-import { getAdminPlayerCreds, clearAdminPlayerCreds } from "@/lib/adminPlayerAuth";
+import { getAdminPlayerCreds, setAdminPlayerCreds, clearAdminPlayerCreds } from "@/lib/adminPlayerAuth";
+import { useAdminTier } from "@/lib/useAdminTier";
 
 export default function GameSelector() {
   const router = useRouter();
@@ -11,6 +12,7 @@ export default function GameSelector() {
   const [hoveredLive, setHoveredLive] = useState(false);
   const [hoveredSoon, setHoveredSoon] = useState(false);
   const [adminUsername, setAdminUsername] = useState<string | null>(null);
+  const { tier, isGodAdmin } = useAdminTier();
 
   useEffect(() => {
     async function fetchCount() {
@@ -22,6 +24,18 @@ export default function GameSelector() {
     setAdminUsername(getAdminPlayerCreds()?.username ?? null);
     return () => clearInterval(interval);
   }, []);
+
+  const switchAdminUser = () => {
+    const next = window.prompt(
+      `Switch admin (currently: ${adminUsername ?? "none"}).\nEnter the new in-game username:`,
+      "",
+    );
+    if (!next || !next.trim()) return;
+    const pin = window.prompt(`PIN for ${next.trim()}:`);
+    if (!pin || !pin.trim()) return;
+    setAdminPlayerCreds({ username: next.trim(), pin: pin.trim() });
+    window.location.reload();
+  };
 
   return (
     <div style={{ minHeight: "100vh", background: "var(--color-bg)" }}>
@@ -41,13 +55,23 @@ export default function GameSelector() {
             display: "flex", alignItems: "center", justifyContent: "center",
             fontWeight: 700, fontSize: 13, color: "#fff",
           }}>{(adminUsername || "A").charAt(0).toUpperCase()}</div>
-          <span style={{ fontFamily: "var(--font-jetbrains)", fontSize: 13, color: "var(--color-text)" }}>{adminUsername || "—"}</span>
+          <button onClick={switchAdminUser} title="Switch the in-game admin user (changes which tools are visible across all games)" style={{
+            display: "flex", alignItems: "center", gap: 6,
+            marginLeft: 4, padding: "6px 10px", borderRadius: 8, background: "var(--color-card)",
+            border: `1px solid ${isGodAdmin ? "rgba(255,77,77,0.5)" : "var(--color-border)"}`,
+            color: "#fff", cursor: "pointer", fontSize: 12,
+          }}>
+            <span style={{ fontSize: 13 }}>{isGodAdmin ? "👑" : tier >= 1 ? "🛡️" : "👤"}</span>
+            <span className="font-mono">{adminUsername || "not set"}</span>
+            <span style={{ fontSize: 10, color: "var(--color-text-muted)" }}>(tier {tier})</span>
+            <span style={{ fontSize: 10, color: "var(--color-text-muted)", marginLeft: 4 }}>switch</span>
+          </button>
           {adminUsername && (
             <button onClick={() => {
               clearAdminPlayerCreds();
               setAdminUsername(null);
               window.location.reload();
-            }} title="Forgets the cached in-game username + PIN so the next admin action re-prompts. Use this if you typed the wrong PIN or want to switch admin accounts." style={{
+            }} title="Forgets the cached in-game username + PIN so the next admin action re-prompts." style={{
               marginLeft: 4, padding: "6px 10px", borderRadius: 8, background: "transparent",
               border: "1px solid var(--color-border)", color: "var(--color-text-muted)",
               cursor: "pointer", fontSize: 11,
