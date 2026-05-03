@@ -18,7 +18,8 @@ import StatusStrip from "./components/StatusStrip";
 import CollapsibleCard from "./components/CollapsibleCard";
 import BotTools from "./components/BotTools";
 import { useAdminTier } from "@/lib/useAdminTier";
-import { getAdminPlayerCreds, setAdminPlayerCreds, clearAdminPlayerCreds } from "@/lib/adminPlayerAuth";
+import { useSessionRole } from "@/lib/useSessionRole";
+import { getAdminPlayerCreds, setAdminPlayerCreds } from "@/lib/adminPlayerAuth";
 
 const SPLIT_KEY = "brainrot_admin_split_px";
 const MIN_LEFT = 320;
@@ -78,9 +79,13 @@ export default function BrainrotAdmin() {
   const [eventActive, setEventActive] = useState(false);
   const [playerCount, setPlayerCount] = useState(0);
   const online = usePresence();
-  // Tier-based gating. isGodAdmin flips true only for tier >= 2 (EmoneyAdmin).
-  // TmoneyAdmin (tier 1) sees everything else but not God-only sections.
+  // In-game tier (display only — for the badge inside the Switch User button).
   const { tier, isGodAdmin } = useAdminTier();
+  // Site session role IS the security boundary. God Admin section + Switch
+  // User button render only when EmoneyAdmin is logged in. TmoneyAdmin sees
+  // a static identity label and cannot escalate.
+  const { role: sessionRole, isGodAdmin: isGodSession } = useSessionRole();
+  const siteUsername = sessionRole === "god" ? "EmoneyAdmin" : sessionRole === "admin" ? "TmoneyAdmin" : "—";
   // Track the cached admin username so the header can show who's logged in
   // and the Switch User button can prompt for a swap.
   const [currentAdminUsername, setCurrentAdminUsername] = useState<string | null>(null);
@@ -195,21 +200,33 @@ export default function BrainrotAdmin() {
             <span className="font-mono" style={{ fontSize: 12, color: "var(--color-text-muted)" }}>{playerCount}</span>
             <span style={{ fontSize: 11, color: "var(--color-text-muted)" }}>total</span>
           </div>
-          {/* Switch admin user — prompt for a different in-game username + PIN
-              and reload. Useful for hopping between TmoneyAdmin (tier 1) and
-              EmoneyAdmin (tier 2) to test gated tools. Tier badge shows
-              what permission level is currently active. */}
-          <button onClick={switchAdminUser} title="Switch the in-game admin user (changes which tools are visible)" style={{
-            display: "flex", alignItems: "center", gap: 6,
-            padding: "6px 10px", borderRadius: 8, background: "var(--color-card)",
-            border: `1px solid ${isGodAdmin ? "rgba(255,77,77,0.5)" : "var(--color-border)"}`,
-            color: "#fff", cursor: "pointer", fontSize: 12,
-          }}>
-            <span style={{ fontSize: 13 }}>{isGodAdmin ? "👑" : tier >= 1 ? "🛡️" : "👤"}</span>
-            <span className="font-mono">{currentAdminUsername || "not set"}</span>
-            <span style={{ fontSize: 10, color: "var(--color-text-muted)" }}>(tier {tier})</span>
-            <span style={{ fontSize: 10, color: "var(--color-text-muted)", marginLeft: 4 }}>switch</span>
-          </button>
+          {/* Switch admin user — only visible to EmoneyAdmin sessions.
+              TmoneyAdmin gets a static identity badge instead, so they can't
+              swap into emoney's PIN to escalate. The in-game tier badge in
+              the button is informational; the security check is on sessionRole. */}
+          {isGodSession ? (
+            <button onClick={switchAdminUser} title="Switch the in-game admin user (changes which tools are visible)" style={{
+              display: "flex", alignItems: "center", gap: 6,
+              padding: "6px 10px", borderRadius: 8, background: "var(--color-card)",
+              border: `1px solid ${isGodAdmin ? "rgba(255,77,77,0.5)" : "var(--color-border)"}`,
+              color: "#fff", cursor: "pointer", fontSize: 12,
+            }}>
+              <span style={{ fontSize: 13 }}>{isGodAdmin ? "👑" : tier >= 1 ? "🛡️" : "👤"}</span>
+              <span className="font-mono">{currentAdminUsername || "not set"}</span>
+              <span style={{ fontSize: 10, color: "var(--color-text-muted)" }}>(tier {tier})</span>
+              <span style={{ fontSize: 10, color: "var(--color-text-muted)", marginLeft: 4 }}>switch</span>
+            </button>
+          ) : (
+            <span className="font-mono" style={{
+              display: "flex", alignItems: "center", gap: 6,
+              padding: "6px 10px", borderRadius: 8,
+              background: "var(--color-card)", border: "1px solid var(--color-border)",
+              color: "#fff", fontSize: 12,
+            }}>
+              <span style={{ fontSize: 13 }}>🛡️</span>
+              {siteUsername}
+            </span>
+          )}
           <button onClick={async () => {
             await fetch("/api/auth/logout", { method: "POST" });
             window.location.href = "/login";
@@ -285,10 +302,12 @@ export default function BrainrotAdmin() {
             </CollapsibleCard>
           </Section>
 
-          {/* 6. GOD ADMIN — only renders when admin_tier >= 2 (EmoneyAdmin).
-              Invisible to TmoneyAdmin (tier 1) and below. Future god-only
-              tools land in this section. */}
-          {isGodAdmin && (
+          {/* 6. GOD ADMIN — gated on the SITE SESSION being EmoneyAdmin, not
+              the in-game admin_tier. This makes the dashboard an honest gate:
+              TmoneyAdmin sessions cannot reveal these tools by switching the
+              cached in-game PIN. Server-side RPCs still verify admin_tier as
+              defense-in-depth. */}
+          {isGodSession && (
             <Section id="section-godadmin" icon="👑" accent="#ff4d4d" title="God Admin">
               <CollapsibleCard id="bot-tools" icon="🤖" title="Bot Tools" defaultOpen={false}>
                 <BotTools />

@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import { supabase } from "@/lib/supabase";
 import { getAdminPlayerCreds, setAdminPlayerCreds, clearAdminPlayerCreds } from "@/lib/adminPlayerAuth";
 import { useAdminTier } from "@/lib/useAdminTier";
+import { useSessionRole } from "@/lib/useSessionRole";
 
 export default function GameSelector() {
   const router = useRouter();
@@ -13,6 +14,11 @@ export default function GameSelector() {
   const [hoveredSoon, setHoveredSoon] = useState(false);
   const [adminUsername, setAdminUsername] = useState<string | null>(null);
   const { tier, isGodAdmin } = useAdminTier();
+  // Site session role is the security boundary. Switch User and god UI are
+  // gated on this — useAdminTier only reflects the in-game player and would
+  // let any session escalate by typing emoney's PIN.
+  const { role: sessionRole, isGodAdmin: isGodSession } = useSessionRole();
+  const siteUsername = sessionRole === "god" ? "EmoneyAdmin" : sessionRole === "admin" ? "TmoneyAdmin" : "—";
 
   useEffect(() => {
     async function fetchCount() {
@@ -54,28 +60,44 @@ export default function GameSelector() {
             background: "linear-gradient(135deg, var(--color-purple), var(--color-blue))",
             display: "flex", alignItems: "center", justifyContent: "center",
             fontWeight: 700, fontSize: 13, color: "#fff",
-          }}>{(adminUsername || "A").charAt(0).toUpperCase()}</div>
-          <button onClick={switchAdminUser} title="Switch the in-game admin user (changes which tools are visible across all games)" style={{
-            display: "flex", alignItems: "center", gap: 6,
-            marginLeft: 4, padding: "6px 10px", borderRadius: 8, background: "var(--color-card)",
-            border: `1px solid ${isGodAdmin ? "rgba(255,77,77,0.5)" : "var(--color-border)"}`,
-            color: "#fff", cursor: "pointer", fontSize: 12,
-          }}>
-            <span style={{ fontSize: 13 }}>{isGodAdmin ? "👑" : tier >= 1 ? "🛡️" : "👤"}</span>
-            <span className="font-mono">{adminUsername || "not set"}</span>
-            <span style={{ fontSize: 10, color: "var(--color-text-muted)" }}>(tier {tier})</span>
-            <span style={{ fontSize: 10, color: "var(--color-text-muted)", marginLeft: 4 }}>switch</span>
-          </button>
-          {adminUsername && (
-            <button onClick={() => {
-              clearAdminPlayerCreds();
-              setAdminUsername(null);
-              window.location.reload();
-            }} title="Forgets the cached in-game username + PIN so the next admin action re-prompts." style={{
-              marginLeft: 4, padding: "6px 10px", borderRadius: 8, background: "transparent",
-              border: "1px solid var(--color-border)", color: "var(--color-text-muted)",
-              cursor: "pointer", fontSize: 11,
-            }}>Reset admin PIN</button>
+          }}>{siteUsername.charAt(0).toUpperCase()}</div>
+          {isGodSession ? (
+            <>
+              <button onClick={switchAdminUser} title="Switch the in-game admin user (changes which tools are visible across all games)" style={{
+                display: "flex", alignItems: "center", gap: 6,
+                marginLeft: 4, padding: "6px 10px", borderRadius: 8, background: "var(--color-card)",
+                border: `1px solid ${isGodAdmin ? "rgba(255,77,77,0.5)" : "var(--color-border)"}`,
+                color: "#fff", cursor: "pointer", fontSize: 12,
+              }}>
+                <span style={{ fontSize: 13 }}>{isGodAdmin ? "👑" : tier >= 1 ? "🛡️" : "👤"}</span>
+                <span className="font-mono">{adminUsername || "not set"}</span>
+                <span style={{ fontSize: 10, color: "var(--color-text-muted)" }}>(tier {tier})</span>
+                <span style={{ fontSize: 10, color: "var(--color-text-muted)", marginLeft: 4 }}>switch</span>
+              </button>
+              {adminUsername && (
+                <button onClick={() => {
+                  clearAdminPlayerCreds();
+                  setAdminUsername(null);
+                  window.location.reload();
+                }} title="Forgets the cached in-game username + PIN so the next admin action re-prompts." style={{
+                  marginLeft: 4, padding: "6px 10px", borderRadius: 8, background: "transparent",
+                  border: "1px solid var(--color-border)", color: "var(--color-text-muted)",
+                  cursor: "pointer", fontSize: 11,
+                }}>Reset admin PIN</button>
+              )}
+            </>
+          ) : (
+            // Non-god sessions see only their site identity. No switch, no
+            // tier escalation surface.
+            <span className="font-mono" style={{
+              display: "flex", alignItems: "center", gap: 6,
+              marginLeft: 4, padding: "6px 10px", borderRadius: 8,
+              background: "var(--color-card)", border: "1px solid var(--color-border)",
+              color: "#fff", fontSize: 12,
+            }}>
+              <span style={{ fontSize: 13 }}>🛡️</span>
+              {siteUsername}
+            </span>
           )}
           <button onClick={async () => {
             await fetch("/api/auth/logout", { method: "POST" });

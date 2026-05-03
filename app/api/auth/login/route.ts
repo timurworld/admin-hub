@@ -17,11 +17,12 @@ export async function POST(req: Request) {
   const username = (body.username || "").trim();
   const password = body.password || "";
 
-  if (!(await isValidLogin(username, password))) {
+  const role = await isValidLogin(username, password);
+  if (!role) {
     return NextResponse.json({ ok: false, error: "Invalid credentials" }, { status: 401 });
   }
 
-  const token = await makeSessionToken();
+  const token = await makeSessionToken(role);
   const res = NextResponse.json({ ok: true });
   res.cookies.set(SESSION_COOKIE, token, {
     httpOnly: true,
