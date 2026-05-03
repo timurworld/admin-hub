@@ -139,11 +139,12 @@ export default function StatusStrip() {
 
   return (
     <div style={{
-      // 2-column grid LOCKS the Online chip at column 1 — it never moves
-      // when other chips appear/disappear, so the dropdown anchor is stable.
-      // Other chips wrap freely inside column 2.
+      // 2-column grid LOCKS the Online chip at column 2 (right edge) — it
+      // never moves when other chips appear/disappear in column 1.
+      // Column 1 takes 1fr so other chips fill remaining width; Online is
+      // pinned right with max-content width.
       display: "grid",
-      gridTemplateColumns: "max-content 1fr",
+      gridTemplateColumns: "1fr max-content",
       gap: 6,
       alignItems: "start",
       padding: "10px 8px",
@@ -153,7 +154,51 @@ export default function StatusStrip() {
       marginBottom: 8,
       position: "sticky", top: 0, zIndex: 10,
     }}>
-      {/* Column 1 — Online chip, anchored left, never moves */}
+      {/* Column 1 — other chips wrap freely here, on the left */}
+      <div style={{ display: "flex", flexWrap: "wrap", gap: 6 }}>
+      {eventActive && (
+        <Chip
+          icon="🔴"
+          label="LIVE"
+          value={eventName || ""}
+          color="var(--color-red)"
+          onClick={() => jumpTo("section-live")}
+          title="Live event is active"
+        />
+      )}
+      {locker ? (
+        <Chip
+          icon="🔐"
+          label={locker.name}
+          value={`${locker.remaining_stock}/${locker.total_stock}${locker.admin_only ? " · DRY" : ""}`}
+          color={locker.admin_only ? "#ff8c00" : "#ffd700"}
+          onClick={() => jumpTo("section-events")}
+          title={`Closes in ${timeLeft(locker.expires_at)}`}
+        />
+      ) : (
+        <Chip icon="🔐" label="Locker" value="—" dim onClick={() => jumpTo("section-events")} />
+      )}
+      {dropEvent ? (
+        <Chip
+          icon="🎁"
+          label={waveLive ? `${dropEvent.name} ⚡${waveSec}s` : dropEvent.name}
+          value={`${dropRemaining}/${dropTotal}${dropEvent.admin_only ? " · DRY" : ""}`}
+          color={waveLive ? "#ffd700" : (dropEvent.admin_only ? "#ff8c00" : "#2ecc71")}
+          onClick={() => jumpTo("section-events")}
+          title={waveLive ? `Wave ends in ${waveSec}s` : "Drop event"}
+        />
+      ) : (
+        <Chip icon="🎁" label="Drops" value="—" dim onClick={() => jumpTo("section-events")} />
+      )}
+      <Chip
+        icon="📋"
+        label="Trades"
+        value={String(tradeCount)}
+        dim={tradeCount === 0}
+      />
+      </div>
+
+      {/* Column 2 — Online chip, anchored RIGHT, never moves */}
       <div style={{ position: "relative" }}>
         <Chip
           icon="👥"
@@ -170,11 +215,11 @@ export default function StatusStrip() {
               position: "fixed", inset: 0, zIndex: 19,
             }} />
             <div style={{
-              // Anchored to LEFT so the dropdown opens rightward from the
-              // chip. Was right:0 which made the dropdown extend leftward —
-              // when flexWrap moved the chip to the left side of the strip,
-              // the dropdown ended up off-screen.
-              position: "absolute", top: "calc(100% + 6px)", left: 0, zIndex: 20,
+              // Online chip is pinned to the RIGHT of the strip, so the
+              // dropdown opens LEFTWARD (right:0 → right edge anchored to
+              // chip's right edge) into the visible aside. Opening rightward
+              // would push it off-screen past the splitter.
+              position: "absolute", top: "calc(100% + 6px)", right: 0, zIndex: 20,
               background: "var(--color-card)",
               border: "1px solid var(--color-border)",
               borderRadius: 10,
@@ -228,56 +273,6 @@ export default function StatusStrip() {
             </div>
           </>
         )}
-      </div>
-
-      {/* Column 2 — all other chips wrap freely here. Online (column 1)
-          isn't affected by changes in this column. */}
-      <div style={{ display: "flex", flexWrap: "wrap", gap: 6 }}>
-      {/* LIVE chip only shows when event is active. The OFFLINE state is just
-          clutter on the strip when nothing's happening — hide it entirely. */}
-      {eventActive && (
-        <Chip
-          icon="🔴"
-          label="LIVE"
-          value={eventName || ""}
-          color="var(--color-red)"
-          onClick={() => jumpTo("section-live")}
-          title="Live event is active"
-        />
-      )}
-
-      {locker ? (
-        <Chip
-          icon="🔐"
-          label={locker.name}
-          value={`${locker.remaining_stock}/${locker.total_stock}${locker.admin_only ? " · DRY" : ""}`}
-          color={locker.admin_only ? "#ff8c00" : "#ffd700"}
-          onClick={() => jumpTo("section-events")}
-          title={`Closes in ${timeLeft(locker.expires_at)}`}
-        />
-      ) : (
-        <Chip icon="🔐" label="Locker" value="—" dim onClick={() => jumpTo("section-events")} />
-      )}
-
-      {dropEvent ? (
-        <Chip
-          icon="🎁"
-          label={waveLive ? `${dropEvent.name} ⚡${waveSec}s` : dropEvent.name}
-          value={`${dropRemaining}/${dropTotal}${dropEvent.admin_only ? " · DRY" : ""}`}
-          color={waveLive ? "#ffd700" : (dropEvent.admin_only ? "#ff8c00" : "#2ecc71")}
-          onClick={() => jumpTo("section-events")}
-          title={waveLive ? `Wave ends in ${waveSec}s` : "Drop event"}
-        />
-      ) : (
-        <Chip icon="🎁" label="Drops" value="—" dim onClick={() => jumpTo("section-events")} />
-      )}
-
-      <Chip
-        icon="📋"
-        label="Trades"
-        value={String(tradeCount)}
-        dim={tradeCount === 0}
-      />
       </div>
     </div>
   );
