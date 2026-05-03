@@ -139,7 +139,13 @@ export default function StatusStrip() {
 
   return (
     <div style={{
-      display: "flex", flexWrap: "wrap", gap: 6,
+      // 2-column grid LOCKS the Online chip at column 1 — it never moves
+      // when other chips appear/disappear, so the dropdown anchor is stable.
+      // Other chips wrap freely inside column 2.
+      display: "grid",
+      gridTemplateColumns: "max-content 1fr",
+      gap: 6,
+      alignItems: "start",
       padding: "10px 8px",
       background: "var(--color-bg)",
       borderRadius: 10,
@@ -147,8 +153,7 @@ export default function StatusStrip() {
       marginBottom: 8,
       position: "sticky", top: 0, zIndex: 10,
     }}>
-      {/* Online chip first → its position stays anchored top-left even when
-          other chips wrap to a second row. Dropdown anchors here predictably. */}
+      {/* Column 1 — Online chip, anchored left, never moves */}
       <div style={{ position: "relative" }}>
         <Chip
           icon="👥"
@@ -225,6 +230,9 @@ export default function StatusStrip() {
         )}
       </div>
 
+      {/* Column 2 — all other chips wrap freely here. Online (column 1)
+          isn't affected by changes in this column. */}
+      <div style={{ display: "flex", flexWrap: "wrap", gap: 6 }}>
       {/* LIVE chip only shows when event is active. The OFFLINE state is just
           clutter on the strip when nothing's happening — hide it entirely. */}
       {eventActive && (
@@ -270,6 +278,7 @@ export default function StatusStrip() {
         value={String(tradeCount)}
         dim={tradeCount === 0}
       />
+      </div>
     </div>
   );
 }
