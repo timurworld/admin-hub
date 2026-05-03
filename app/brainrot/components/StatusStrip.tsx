@@ -61,6 +61,15 @@ const Chip = ({ icon, label, value, color, onClick, dim, title }: {
   </button>
 );
 
+// Country code → flag emoji (regional indicator pair). 'CA' → 🇨🇦, 'US' → 🇺🇸, etc.
+function flag(cc: string | null | undefined): string {
+  if (!cc || cc.length !== 2) return "";
+  const A = 0x1f1e6, base = "A".charCodeAt(0);
+  return String.fromCodePoint(A + cc.charCodeAt(0) - base, A + cc.charCodeAt(1) - base);
+}
+
+interface GeoRow { city: string | null; country: string | null; country_code: string | null; }
+
 export default function StatusStrip() {
   const [eventActive, setEventActive] = useState(false);
   const [eventName, setEventName] = useState("");
@@ -69,7 +78,28 @@ export default function StatusStrip() {
   const [tradeCount, setTradeCount] = useState(0);
   const [, setTick] = useState(0); // for live-updating countdowns
   const [showOnline, setShowOnline] = useState(false);
+  const [geoMap, setGeoMap] = useState<Record<string, GeoRow>>({});
   const online = usePresence();
+
+  // Fetch geo data for online players when the dropdown opens. Cheap query
+  // (one round-trip filtered by usernames) and we only refetch when the set
+  // of online players changes, not every render.
+  useEffect(() => {
+    if (!showOnline || online.size === 0) return;
+    const usernames = [...online];
+    (async () => {
+      const { data } = await supabase
+        .from("players")
+        .select("username, city, country, country_code")
+        .in("username", usernames.map(n => n.toLowerCase()));
+      if (!data) return;
+      const map: Record<string, GeoRow> = {};
+      data.forEach((row: { username: string; city: string | null; country: string | null; country_code: string | null }) => {
+        map[row.username.toLowerCase()] = { city: row.city, country: row.country, country_code: row.country_code };
+      });
+      setGeoMap(map);
+    })();
+  }, [showOnline, online]);
 
   useEffect(() => {
     async function refreshAll() {
@@ -193,20 +223,34 @@ export default function StatusStrip() {
                   Nobody live yet.
                 </div>
               ) : (
-                [...online].map(name => (
-                  <div key={name} style={{
-                    display: "flex", alignItems: "center", gap: 8,
-                    padding: "4px 6px", fontSize: 12, color: "#fff",
-                    borderRadius: 6,
-                  }}>
-                    <span style={{
-                      width: 6, height: 6, borderRadius: "50%",
-                      background: "var(--color-green)",
-                      boxShadow: "0 0 6px var(--color-green)",
-                    }} />
-                    <span style={{ fontFamily: "var(--font-jetbrains)" }}>{name}</span>
-                  </div>
-                ))
+                [...online].map(name => {
+                  const geo = geoMap[name.toLowerCase()];
+                  const locLabel = geo
+                    ? [geo.city, geo.country_code].filter(Boolean).join(", ")
+                    : null;
+                  return (
+                    <div key={name} style={{
+                      display: "flex", alignItems: "center", gap: 8,
+                      padding: "4px 6px", fontSize: 12, color: "#fff",
+                      borderRadius: 6,
+                    }}>
+                      <span style={{
+                        width: 6, height: 6, borderRadius: "50%",
+                        background: "var(--color-green)",
+                        boxShadow: "0 0 6px var(--color-green)",
+                      }} />
+                      <span style={{ fontFamily: "var(--font-jetbrains)", flex: 1, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{name}</span>
+                      {locLabel && (
+                        <span title={geo?.country || locLabel} style={{
+                          fontSize: 10, color: "var(--color-text-muted)",
+                          fontFamily: "var(--font-jetbrains)", whiteSpace: "nowrap",
+                        }}>
+                          {flag(geo?.country_code)} {locLabel}
+                        </span>
+                      )}
+                    </div>
+                  );
+                })
               )}
             </div>
           </>
