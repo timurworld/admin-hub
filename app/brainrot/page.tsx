@@ -192,18 +192,24 @@ export default function BrainrotAdmin() {
         }}>
           <StatusStrip />
 
-          <Section id="section-live" icon="🔴" accent="#ff4d4d" title="Live Control">
+          {/* 1. LIVE SHOW — admin abuse toggle + scheduling. Show on/off only. */}
+          <Section id="section-live" icon="🎬" accent="#ff4d4d" title="Live Show">
             <CollapsibleCard id="live-event" icon="🔴" title="Live Event" defaultOpen accent="var(--color-red)">
               <LiveEventBlock onChange={setEventActive} />
             </CollapsibleCard>
             <CollapsibleCard id="scheduler" icon="📅" title="Schedule Event" defaultOpen={false}>
               <EventScheduler />
             </CollapsibleCard>
+          </Section>
+
+          {/* 2. BROADCAST — always-available communication, not tied to live show. */}
+          <Section id="section-broadcast" icon="📣" accent="#ffa630" title="Broadcast">
             <CollapsibleCard id="global-message" icon="📢" title="Broadcast Message" defaultOpen={false} forceOpen={eventActive}>
               <GlobalMessage />
             </CollapsibleCard>
           </Section>
 
+          {/* 3. PLAYER REWARDS — per-player gifts, always available. */}
           <Section id="section-rewards" icon="🎁" accent="#ffd700" title="Player Rewards">
             <CollapsibleCard id="give-coins" icon="🪙" title="Give Coins" defaultOpen={false}>
               <GiveCoins />
@@ -213,7 +219,8 @@ export default function BrainrotAdmin() {
             </CollapsibleCard>
           </Section>
 
-          <Section id="section-events" icon="⚡" accent="#a259ff" title="V2 Events">
+          {/* 4. GAME EVENTS — long-running content events, decoupled from live show. */}
+          <Section id="section-events" icon="⚡" accent="#a259ff" title="Game Events">
             <CollapsibleCard id="drop-event" icon="🎁" title="Drop Event" defaultOpen={false} accent="rgba(255,200,80,0.5)">
               <SpawnDropEvent />
             </CollapsibleCard>
@@ -222,6 +229,7 @@ export default function BrainrotAdmin() {
             </CollapsibleCard>
           </Section>
 
+          {/* 5. DJ BOOTH — interactive live-show tools (vote + effects). */}
           <Section id="section-djbooth" icon="🎵" accent="#00d4ff" title="DJ Booth">
             <CollapsibleCard id="player-vote" icon="🗳" title="Player Vote" defaultOpen={false}>
               <PlayerVote />
