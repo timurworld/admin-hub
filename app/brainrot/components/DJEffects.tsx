@@ -34,17 +34,38 @@ export default function DJEffects() {
     return () => { supabase.removeChannel(sub); };
   }, []);
 
+  // Toggle reads the DB row at click time (not React state) so it stays
+  // correct even if local state is stale from a missed realtime event. Errors
+  // were previously swallowed — that masked silent RLS failures, which left
+  // admin showing OFF while the real row stayed ON and the player kept
+  // hearing music. Now we surface the error and skip the local update if the
+  // DB write doesn't land.
   const toggle = async (effectId: string) => {
-    const newActive = !active[effectId];
-    const { data: existing } = await supabase.from("active_effects")
-      .select("id").eq("game_id", GAME_ID).eq("effect_id", effectId).maybeSingle();
+    const { data: existing, error: selectError } = await supabase.from("active_effects")
+      .select("id, active").eq("game_id", GAME_ID).eq("effect_id", effectId).maybeSingle();
+    if (selectError) {
+      window.alert(`Couldn't read ${effectId} state: ${selectError.message}`);
+      return;
+    }
+    const currentActive = !!existing?.active;
+    const newActive = !currentActive;
+
     if (existing) {
-      await supabase.from("active_effects").update({ active: newActive, started_at: new Date().toISOString() })
+      const { error } = await supabase.from("active_effects")
+        .update({ active: newActive, started_at: new Date().toISOString() })
         .eq("id", existing.id);
+      if (error) {
+        window.alert(`Couldn't toggle ${effectId}: ${error.message}`);
+        return;
+      }
     } else {
-      await supabase.from("active_effects").insert({
+      const { error } = await supabase.from("active_effects").insert({
         game_id: GAME_ID, effect_id: effectId, active: newActive,
       });
+      if (error) {
+        window.alert(`Couldn't create ${effectId}: ${error.message}`);
+        return;
+      }
     }
     setActive(prev => ({ ...prev, [effectId]: newActive }));
 
@@ -58,9 +79,30 @@ export default function DJEffects() {
     }
   };
 
+  // Defensive nuke — flips every effect off in one shot. Useful when the UI
+  // gets desynced from the DB (e.g. realtime channel dropped) and the admin
+  // just wants the floor cleared.
+  const stopAll = async () => {
+    const { error } = await supabase.from("active_effects")
+      .update({ active: false }).eq("game_id", GAME_ID);
+    if (error) { window.alert(`Couldn't stop all: ${error.message}`); return; }
+    setActive({});
+  };
+
+  const anyActive = Object.values(active).some(Boolean);
+
   return (
     <Card>
-      <SectionLabel>DJ effects</SectionLabel>
+      <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 6 }}>
+        <SectionLabel>DJ effects</SectionLabel>
+        {anyActive && (
+          <button onClick={stopAll} title="Force every effect off (safety net if the UI desyncs from the DB)" style={{
+            padding: "3px 8px", borderRadius: 6, fontSize: 10,
+            background: "transparent", color: "var(--color-text-muted)",
+            border: "1px solid var(--color-border)", cursor: "pointer",
+          }}>Stop all</button>
+        )}
+      </div>
       <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 6 }}>
         {EFFECTS.map(fx => {
           const on = active[fx.id];
