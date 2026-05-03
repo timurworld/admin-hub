@@ -87,6 +87,28 @@ export default function GiveSkin() {
     sendAll();
   };
 
+  // Pick a single random player and gift them the skin.
+  const sendRandom = async () => {
+    if (!canSendAll) return;
+    setSending(true);
+    const { data: all } = await supabase.from("leaderboard").select("username");
+    const eligible = (all || []).filter(p => !p.username.toLowerCase().startsWith("testplayer"));
+    if (eligible.length === 0) {
+      setSuccess({ ok: false, msg: "No eligible players" });
+      setSending(false);
+      setTimeout(() => setSuccess(null), 4000);
+      return;
+    }
+    const target = eligible[Math.floor(Math.random() * eligible.length)];
+    await supabase.from("skin_gifts").insert({
+      game_id: GAME_ID, player_name: target.username.toLowerCase(), skin_name: skin,
+    });
+    setSuccess({ ok: true, msg: `🎲 Random pick: "${skin}" → ${target.username}` });
+    setSkin(""); setQuery(""); setPicked(null); setOpen(false);
+    setSending(false);
+    setTimeout(() => setSuccess(null), 5000);
+  };
+
   const sendAll = async () => {
     if (!canSendAll) return;
     setSending(true);
@@ -184,6 +206,20 @@ export default function GiveSkin() {
 
       <Button onClick={send} disabled={!canSend} style={{ width: "100%" }}>
         {targetName && skin ? `🎁 Send "${skin}" to ${targetName}` : "🎁 Send"}
+      </Button>
+
+      {/* Random player — picks one at random for surprise gifts. */}
+      <Button onClick={sendRandom} disabled={!canSendAll} style={{
+        width: "100%", marginTop: 6,
+        background: canSendAll ? "rgba(0,212,255,0.15)" : "var(--color-border)",
+        color: canSendAll ? "var(--color-cyan, #00d4ff)" : "var(--color-text-muted)",
+        border: `1px solid ${canSendAll ? "rgba(0,212,255,0.4)" : "var(--color-border)"}`,
+      }}>
+        {sending
+          ? "Sending…"
+          : skin
+            ? `🎲 Send "${skin}" to RANDOM player`
+            : "Pick a skin to send to a random player"}
       </Button>
 
       <Button onClick={armOrFireAll} disabled={!canSendAll} style={{

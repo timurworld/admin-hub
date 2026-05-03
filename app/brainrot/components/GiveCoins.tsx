@@ -114,6 +114,34 @@ export default function GiveCoins() {
     giveAll();
   };
 
+  // Pick a single random player from the leaderboard and gift them coins.
+  // Excludes test accounts the same way "Give to ALL" does.
+  const giveRandom = async () => {
+    if (!canGive || sending) return;
+    if (overCap) return;
+    setSending(true);
+    const { data: all } = await supabase.from("leaderboard")
+      .select("player_id, username, lifetime_points");
+    const eligible = (all || []).filter(p => !p.username.toLowerCase().startsWith("testplayer"));
+    if (eligible.length === 0) {
+      setSuccess({ ok: false, msg: "No eligible players" });
+      setSending(false);
+      setTimeout(() => setSuccess(null), 4000);
+      return;
+    }
+    const target = eligible[Math.floor(Math.random() * eligible.length)];
+    const newTotal = (target.lifetime_points || 0) + amt;
+    await supabase.from("leaderboard").update({ lifetime_points: newTotal })
+      .eq("player_id", target.player_id);
+    await supabase.from("coin_gifts").insert({
+      game_id: GAME_ID, player_name: target.username.toLowerCase(), amount: amt,
+    });
+    setSuccess({ ok: true, msg: `🎲 Random pick: ${amt.toLocaleString()} → ${target.username}` });
+    setAmount(""); setQuery(""); setPicked(null); setOpen(false);
+    setSending(false);
+    setTimeout(() => setSuccess(null), 5000);
+  };
+
   const giveAll = async () => {
     if (!canGiveAll || sending) return;
     if (amt > MAX_COINS) return;
@@ -250,6 +278,23 @@ export default function GiveCoins() {
             ? `🪙 Give ${amt.toLocaleString()} to ${targetName}`
             : "Pick a player and amount"}
       </Button>
+      {/* Random player — picks one at random. Useful for surprise gifts
+          and giveaway-style live show moments. */}
+      <Button onClick={giveRandom} disabled={!canGiveAll} style={{
+        width: "100%", marginTop: 6,
+        background: canGiveAll ? "rgba(0,212,255,0.15)" : "var(--color-border)",
+        color: canGiveAll ? "var(--color-cyan, #00d4ff)" : "var(--color-text-muted)",
+        border: `1px solid ${canGiveAll ? "rgba(0,212,255,0.4)" : "var(--color-border)"}`,
+      }}>
+        {sending
+          ? "Sending…"
+          : overCap
+            ? `⚠ Max ${MAX_COINS.toLocaleString()} per gift`
+            : amt > 0
+              ? `🎲 Give ${amt.toLocaleString()} to RANDOM player`
+              : "Set amount to give to a random player"}
+      </Button>
+
       <Button onClick={armOrFireAll} disabled={!canGiveAll} style={{
         width: "100%", marginTop: 6,
         background: armedAll
