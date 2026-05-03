@@ -6,11 +6,41 @@ import { Card, Input, Button, SectionLabel } from "./Card";
 import { ensureAdminPlayerCreds, clearAdminPlayerCreds } from "@/lib/adminPlayerAuth";
 
 // Skin catalog mirrors src/App.jsx CHARACTERS — kept in sync manually for now.
-// Only Sportini drops + a few others make sense as droppable; admin can pick any.
+//
+// GATING POLICY: only Limited skins are gated. Everything else (Common
+// through Mythic, including Prestige) can go in a drop pool.
+//   • Excluded: Hockey Bros (#22) + Los Hockeys (#27) — Limited stays
+//     exclusive to fusion lockers so they keep scarcity.
+//   • Included: Cupideini Hockini (#26, Mythic) — admin can run a "drop
+//     the Maple Cup" event if they want.
+//
+// Each entry shows rarity in the label so admins know what tier they're
+// putting in the pool.
 const ALL_SKINS = [
-  { id: 20, name: "Stick Stick", tag: "Sportini" },
-  { id: 21, name: "No My Pucks", tag: "Sportini" },
-  { id: 22, name: "Hockey Bros (limited)", tag: "Sportini" },
+  { id: 1,  name: "Noobini Lovini",       rarity: "Common"       },
+  { id: 2,  name: "Romantini Grandini",   rarity: "Common"       },
+  { id: 3,  name: "Lovini Lovini Lovini", rarity: "Brainrot God" },
+  { id: 4,  name: "Teddini & Robotini",   rarity: "Legendary"    },
+  { id: 5,  name: "Noobini Partini",      rarity: "Brainrot God" },
+  { id: 6,  name: "Cakini Presintini",    rarity: "Secret"       },
+  { id: 7,  name: "Lovini Rosetti",       rarity: "Rare"         },
+  { id: 8,  name: "Heartini Smilekurro",  rarity: "Common"       },
+  { id: 9,  name: "Dragini Partini",      rarity: "OG"           },
+  { id: 10, name: "Cupidini Sahuroni",    rarity: "Legendary"    },
+  { id: 11, name: "Rositti Tueletti",     rarity: "Rare"         },
+  { id: 12, name: "Birthdayini Cardini",  rarity: "Brainrot God" },
+  { id: 13, name: "Cakini Elephantini",   rarity: "OG"           },
+  { id: 15, name: "Pizzini Partyini",     rarity: "Brainrot God" },
+  { id: 18, name: "Noo Mio Heartini",     rarity: "Rare"         },
+  { id: 19, name: "Cupidini Hotspottini", rarity: "Legendary"    },
+  { id: 20, name: "Stick Stick",          rarity: "Secret",      tag: "Sportini" },
+  { id: 21, name: "No My Pucks",          rarity: "Secret",      tag: "Sportini" },
+  // 22 Hockey Bros — Limited, gated.
+  { id: 23, name: "Sushiro & Soyaro",     rarity: "Prestige"     },
+  { id: 24, name: "Kingurini Orangini",   rarity: "Prestige"     },
+  { id: 25, name: "Auraberry",            rarity: "Prestige"     },
+  { id: 26, name: "Cupideini Hockini",    rarity: "Mythic",      tag: "Sportini" },
+  // 27 Los Hockeys — Limited, gated.
 ];
 
 interface DropEvent {
@@ -142,7 +172,10 @@ export default function SpawnDropEvent() {
         <div style={{ fontSize: 11, color: "var(--color-text-muted)" }}>Skins to drop (qty per skin)</div>
         {ALL_SKINS.map(s => (
           <div key={s.id} style={{ display: "flex", alignItems: "center", gap: 8 }}>
-            <span style={{ flex: 1, fontSize: 12, color: "#fff" }}>{s.name}</span>
+            <span style={{ flex: 1, fontSize: 12, color: "#fff", display: "flex", justifyContent: "space-between", gap: 8 }}>
+              <span>{s.name}</span>
+              <span style={{ fontSize: 10, color: "var(--color-text-muted)", fontFamily: "var(--font-jetbrains)" }}>{s.rarity}</span>
+            </span>
             <Input type="number" min="0" max="9999" style={{ width: 80 }}
               value={pool[s.id] ?? 0}
               onChange={e => setPool(p => ({ ...p, [s.id]: Math.max(0, parseInt(e.target.value) || 0) }))}
