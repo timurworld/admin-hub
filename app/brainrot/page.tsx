@@ -16,6 +16,8 @@ import SpawnDropEvent from "./components/SpawnDropEvent";
 import SpawnLocker from "./components/SpawnLocker";
 import StatusStrip from "./components/StatusStrip";
 import CollapsibleCard from "./components/CollapsibleCard";
+import BotTools from "./components/BotTools";
+import { useAdminTier } from "@/lib/useAdminTier";
 
 const SPLIT_KEY = "brainrot_admin_split_px";
 const MIN_LEFT = 320;
@@ -75,6 +77,9 @@ export default function BrainrotAdmin() {
   const [eventActive, setEventActive] = useState(false);
   const [playerCount, setPlayerCount] = useState(0);
   const online = usePresence();
+  // Tier-based gating. isGodAdmin flips true only for tier >= 2 (EmoneyAdmin).
+  // TmoneyAdmin (tier 1) sees everything else but not God-only sections.
+  const { isGodAdmin } = useAdminTier();
 
   // Resizable split between controls (left) and live preview (right). Persisted.
   const [leftWidth, setLeftWidth] = useState<number>(540);
@@ -245,6 +250,17 @@ export default function BrainrotAdmin() {
               <DJEffects />
             </CollapsibleCard>
           </Section>
+
+          {/* 6. GOD ADMIN — only renders when admin_tier >= 2 (EmoneyAdmin).
+              Invisible to TmoneyAdmin (tier 1) and below. Future god-only
+              tools land in this section. */}
+          {isGodAdmin && (
+            <Section id="section-godadmin" icon="👑" accent="#ff4d4d" title="God Admin">
+              <CollapsibleCard id="bot-tools" icon="🤖" title="Bot Tools" defaultOpen={false}>
+                <BotTools />
+              </CollapsibleCard>
+            </Section>
+          )}
         </aside>
 
         {/* Drag handle */}
