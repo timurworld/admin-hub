@@ -7,8 +7,10 @@ import { Card, SectionLabel, Input, Button } from "./Card";
 
 interface Player { username: string; lifetime_points: number; player_id: string; }
 
-const PRESETS = [1_000, 10_000, 100_000, 1_000_000];
-const MAX_COINS = 1_000_000_000; // 1 billion cap per gift
+// Re-tuned for late-game scale — old 1k–1M presets were dust against
+// players holding tens of trillions. Floor 1M, ceiling 1T.
+const PRESETS = [1_000_000, 100_000_000, 10_000_000_000, 1_000_000_000_000];
+const MAX_COINS = 1_000_000_000_000; // 1 trillion cap per gift
 
 function LiveDot({ live }: { live: boolean }) {
   return (
@@ -226,7 +228,11 @@ export default function GiveCoins() {
             color: amount === String(v) ? "var(--color-amber)" : "var(--color-text-muted)",
             cursor: "pointer", fontSize: 10, fontFamily: "var(--font-jetbrains)",
           }}>
-            {v >= 1_000_000 ? `${v / 1_000_000}M` : v >= 1_000 ? `${v / 1_000}k` : v}
+            {v >= 1_000_000_000_000 ? `${v / 1_000_000_000_000}T`
+              : v >= 1_000_000_000 ? `${v / 1_000_000_000}B`
+              : v >= 1_000_000 ? `${v / 1_000_000}M`
+              : v >= 1_000 ? `${v / 1_000}k`
+              : v}
           </button>
         ))}
       </div>
