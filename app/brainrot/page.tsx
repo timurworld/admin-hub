@@ -57,12 +57,13 @@ function Section({ id, icon, accent, title, children }: {
           textShadow: `0 0 14px ${a}88`,
         }}>{title}</span>
       </div>
-      {/* Body — cards sit inside, on the lighter grey backdrop. More
-          generous padding-bottom so the last card's colored left stripe
-          doesn't visually touch the section's bottom border. */}
+      {/* Body — cards sit inside on the lighter grey backdrop. Big
+          all-around padding + a min-height so each section feels like a
+          spacious container even when only one card lives inside. */}
       <div style={{
-        padding: "12px 14px 16px",
-        display: "flex", flexDirection: "column", gap: 8,
+        padding: "22px 18px 28px",
+        display: "flex", flexDirection: "column", gap: 14,
+        minHeight: 88,
       }}>{children}</div>
     </div>
   );
@@ -221,8 +222,8 @@ export default function BrainrotAdmin() {
             </CollapsibleCard>
           </Section>
 
-          {/* 4. GAME EVENTS — long-running content events, decoupled from live show. */}
-          <Section id="section-events" icon="⚡" accent="#a259ff" title="Game Events">
+          {/* 4. DROPS & LOCKERS — long-running content events, decoupled from live show. */}
+          <Section id="section-events" icon="⚡" accent="#a259ff" title="Drops & Lockers">
             <CollapsibleCard id="drop-event" icon="🎁" title="Drop Event" defaultOpen={false} accent="rgba(255,200,80,0.5)">
               <SpawnDropEvent />
             </CollapsibleCard>
