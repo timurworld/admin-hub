@@ -6,18 +6,45 @@ import { Card, Input, Button, SectionLabel } from "./Card";
 import { ensureAdminPlayerCreds, clearAdminPlayerCreds } from "@/lib/adminPlayerAuth";
 
 // Mirror of game-side CHARACTERS — kept in sync manually.
+//
+// FUSION RULES (clarifying the UI):
+//   • RECIPE (inputs): any 2 or 3 skins. No tier restriction. Admin can
+//     ask for Common + Common → Limited, or Mythic + Limited → Limited,
+//     etc. Whatever makes design sense.
+//   • OUTPUT: must be a fusion-tier skin (Limited or Mythic). Those tiers
+//     are FUSION-ONLY — players can't drop them, can't unlock from points,
+//     can't get from ascend. Fusion is the ONLY way. So the output picker
+//     only shows Limited + Mythic skins.
 const ALL_SKINS = [
-  // Sportini event ingredients (most common locker recipe inputs)
-  { id: 20, name: "Stick Stick" },
-  { id: 21, name: "No My Pucks" },
-  { id: 22, name: "Hockey Bros (limited)" },
-  // Existing legacy skins, in case of future locker recipes
-  { id: 1, name: "Noobini Lovini" },
-  { id: 2, name: "Romantini Grandini" },
-  { id: 3, name: "Lovini Lovini Lovini" },
-  { id: 4, name: "Teddini & Robotini" },
-  { id: 5, name: "Noobini Partini" },
+  { id: 1,  name: "Noobini Lovini",       rarity: "Common"       },
+  { id: 2,  name: "Romantini Grandini",   rarity: "Common"       },
+  { id: 3,  name: "Lovini Lovini Lovini", rarity: "Brainrot God" },
+  { id: 4,  name: "Teddini & Robotini",   rarity: "Legendary"    },
+  { id: 5,  name: "Noobini Partini",      rarity: "Brainrot God" },
+  { id: 6,  name: "Cakini Presintini",    rarity: "Secret"       },
+  { id: 7,  name: "Lovini Rosetti",       rarity: "Rare"         },
+  { id: 8,  name: "Heartini Smilekurro",  rarity: "Common"       },
+  { id: 9,  name: "Dragini Partini",      rarity: "OG"           },
+  { id: 10, name: "Cupidini Sahuroni",    rarity: "Legendary"    },
+  { id: 11, name: "Rositti Tueletti",     rarity: "Rare"         },
+  { id: 12, name: "Birthdayini Cardini",  rarity: "Brainrot God" },
+  { id: 13, name: "Cakini Elephantini",   rarity: "OG"           },
+  { id: 15, name: "Pizzini Partyini",     rarity: "Brainrot God" },
+  { id: 18, name: "Noo Mio Heartini",     rarity: "Rare"         },
+  { id: 19, name: "Cupidini Hotspottini", rarity: "Legendary"    },
+  { id: 20, name: "Stick Stick",          rarity: "Secret"       },
+  { id: 21, name: "No My Pucks",          rarity: "Secret"       },
+  { id: 22, name: "Hockey Bros",          rarity: "Limited"      },
+  { id: 23, name: "Sushiro & Soyaro",     rarity: "Prestige"     },
+  { id: 24, name: "Kingurini Orangini",   rarity: "Prestige"     },
+  { id: 25, name: "Auraberry",            rarity: "Prestige"     },
+  { id: 26, name: "Cupideini Hockini",    rarity: "Mythic"       },
+  { id: 27, name: "Los Hockeys",          rarity: "Limited"      },
 ];
+
+// Output dropdown: Limited and Mythic only (fusion-only tiers).
+const FUSION_OUTPUT_TIERS = new Set(["Limited", "Mythic"]);
+const OUTPUT_SKINS = ALL_SKINS.filter(s => FUSION_OUTPUT_TIERS.has(s.rarity));
 
 interface Locker {
   id: string;
@@ -128,18 +155,27 @@ export default function SpawnLocker() {
       <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
         <Input placeholder="Locker name" value={name} onChange={e => setName(e.target.value)} />
 
-        <div style={{ fontSize: 11, color: "var(--color-text-muted)" }}>Recipe ingredients (qty per skin)</div>
-        {ALL_SKINS.map(s => (
-          <div key={"r" + s.id} style={{ display: "flex", alignItems: "center", gap: 8 }}>
-            <span style={{ flex: 1, fontSize: 12, color: "#fff" }}>{s.name}</span>
-            <Input type="number" min="0" max="99" style={{ width: 60 }}
-              value={recipe[s.id] ?? 0}
-              onChange={e => setRecipe(r => ({ ...r, [s.id]: Math.max(0, parseInt(e.target.value) || 0) }))}
-            />
-          </div>
-        ))}
+        <div style={{ fontSize: 11, color: "var(--color-text-muted)", marginTop: 6 }}>
+          <strong style={{ color: "#fff" }}>Recipe ingredients</strong> · pick any 2–3 skins · qty per skin
+        </div>
+        <div style={{ maxHeight: 280, overflowY: "auto", border: "1px solid var(--color-border)", borderRadius: 6, padding: 6 }}>
+          {ALL_SKINS.map(s => (
+            <div key={"r" + s.id} style={{ display: "flex", alignItems: "center", gap: 8, padding: "2px 0" }}>
+              <span style={{ flex: 1, fontSize: 12, color: "#fff", display: "flex", justifyContent: "space-between", gap: 8 }}>
+                <span>{s.name}</span>
+                <span style={{ fontSize: 10, color: "var(--color-text-muted)", fontFamily: "var(--font-jetbrains)" }}>{s.rarity}</span>
+              </span>
+              <Input type="number" min="0" max="99" style={{ width: 60 }}
+                value={recipe[s.id] ?? 0}
+                onChange={e => setRecipe(r => ({ ...r, [s.id]: Math.max(0, parseInt(e.target.value) || 0) }))}
+              />
+            </div>
+          ))}
+        </div>
 
-        <div style={{ fontSize: 11, color: "var(--color-text-muted)", marginTop: 4 }}>Output skin</div>
+        <div style={{ fontSize: 11, color: "var(--color-text-muted)", marginTop: 8 }}>
+          <strong style={{ color: "#fff" }}>Output skin</strong> · only Limited + Mythic (fusion-only tiers)
+        </div>
         <select
           value={outputSkinId}
           onChange={e => setOutputSkinId(parseInt(e.target.value))}
@@ -149,7 +185,7 @@ export default function SpawnLocker() {
             color: "#fff", fontSize: 13,
           }}
         >
-          {ALL_SKINS.map(s => <option key={"o" + s.id} value={s.id}>{s.name}</option>)}
+          {OUTPUT_SKINS.map(s => <option key={"o" + s.id} value={s.id}>{s.name} · {s.rarity}</option>)}
         </select>
 
         <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 8 }}>
