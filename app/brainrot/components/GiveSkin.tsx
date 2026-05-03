@@ -6,7 +6,9 @@ import { Card, SectionLabel, Input, Button } from "./Card";
 
 interface Player { username: string; player_id: string; }
 
-// Full catalog including V2 Sportini + Prestige skins.
+// Full catalog including V2 Sportini + Prestige skins + Mythic Maple Cup
+// + Limited Los Hockeys. Order roughly chronological so newest skins sit at
+// the bottom of the dropdown — quickest to find when picking the latest drop.
 const SKINS = [
   "Noobini Lovini", "Romantini Grandini", "Lovini Lovini Lovini", "Teddini & Robotini",
   "Noobini Partini", "Cakini Presintini", "Lovini Rosetti", "Heartini Smilekurro",
@@ -14,6 +16,7 @@ const SKINS = [
   "Cakini Elephantini", "Pizzini Partyini", "Noo Mio Heartini", "Cupidini Hotspottini",
   "Stick Stick", "No My Pucks", "Hockey Bros",
   "Sushiro & Soyaro", "Kingurini Orangini", "Auraberry",
+  "Cupideini Hockini", "Los Hockeys",
 ];
 
 export default function GiveSkin() {
