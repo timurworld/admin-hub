@@ -54,20 +54,25 @@ export default function CollapsibleCard({ id, title, icon, defaultOpen = true, a
   return (
     <div id={id}>
       <button
+        type="button"
         onClick={toggle}
         style={{
           width: "100%", display: "flex", alignItems: "center", gap: 10,
-          padding: open ? "8px 12px" : "10px 12px",
-          background: open ? "transparent" : "var(--color-card)",
+          // Bigger click target — was 8/10px, now consistent 12px so the
+          // whole header row reads as obviously tappable.
+          padding: "12px 14px",
+          background: open ? "rgba(255,255,255,0.04)" : "var(--color-card)",
           border: "1px solid var(--color-border)",
           borderLeft: accent ? `3px solid ${accent}` : "1px solid var(--color-border)",
           borderRadius: 8,
           color: "#fff", cursor: "pointer", textAlign: "left",
           fontFamily: "inherit", fontSize: 13, fontWeight: 600,
           letterSpacing: "0.04em",
-          marginBottom: open ? 4 : 0,
-          transition: "background 0.15s",
+          marginBottom: open ? 6 : 0,
+          transition: "background 0.15s, border-color 0.15s",
         }}
+        onMouseEnter={(e) => { (e.currentTarget as HTMLButtonElement).style.borderColor = "var(--color-border-hover)"; }}
+        onMouseLeave={(e) => { (e.currentTarget as HTMLButtonElement).style.borderColor = "var(--color-border)"; }}
       >
         {icon && <span style={{ fontSize: 14 }}>{icon}</span>}
         <span style={{ flex: 1 }}>{title}</span>

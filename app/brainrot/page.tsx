@@ -60,13 +60,12 @@ function Section({ id, icon, accent, title, children }: {
           textShadow: `0 0 14px ${a}88`,
         }}>{title}</span>
       </div>
-      {/* Body — cards sit inside on the lighter grey backdrop. Big
-          all-around padding + a min-height so each section feels like a
-          spacious container even when only one card lives inside. */}
+      {/* Body — cards sit inside on the lighter grey backdrop. Generous
+          all-around padding and 14px gap between cards. No height cap so
+          opened cards can grow as tall as their forms need. */}
       <div style={{
         padding: "22px 18px 28px",
         display: "flex", flexDirection: "column", gap: 14,
-        minHeight: 88,
       }}>{children}</div>
     </div>
   );
