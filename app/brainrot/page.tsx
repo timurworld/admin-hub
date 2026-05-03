@@ -21,29 +21,47 @@ const SPLIT_KEY = "brainrot_admin_split_px";
 const MIN_LEFT = 320;
 const MAX_LEFT = 1100;
 
-// Bigger, colored section dividers. Each section gets an icon + accent color
-// so the eye snaps to "Live Control" vs "V2 Events" instantly during live
-// admin work — was the small uppercase text + 1px line that all sections
-// shared, which was invisible at a glance.
-function SectionHeader({ id, icon, accent, children }: {
-  id?: string; icon?: string; accent?: string; children: React.ReactNode;
+// Section: each functional area renders as a distinct PANEL — colored
+// top stripe, dark glassy header with glowing icon, lighter body holding
+// the cards. This breaks up what used to be one continuous wall of cards
+// into clearly-bounded zones the eye can lock onto during live ops.
+function Section({ id, icon, accent, title, children }: {
+  id?: string; icon?: string; accent?: string;
+  title: React.ReactNode; children: React.ReactNode;
 }) {
   const a = accent || "var(--color-purple)";
   return (
-    <div id={id} style={{
-      display: "flex", alignItems: "center", gap: 10,
-      marginTop: 24, marginBottom: 4,
-      padding: "10px 12px",
-      borderLeft: `4px solid ${a}`,
-      borderRadius: "0 8px 8px 0",
-      background: `linear-gradient(90deg, ${a}22 0%, transparent 75%)`,
-      boxShadow: `0 0 0 1px ${a}33 inset`,
+    <div style={{
+      marginTop: 28,
+      borderRadius: 12,
+      background: "rgba(255,255,255,0.035)",                 // grey body tint
+      border: `1px solid ${a}40`,                            // colored ring
+      borderTop: `4px solid ${a}`,                           // bold top stripe
+      boxShadow: `0 6px 24px ${a}14, 0 0 0 1px rgba(0,0,0,0.4) inset`,
+      overflow: "hidden",
     }}>
-      {icon && <span style={{ fontSize: 18, lineHeight: 1, filter: `drop-shadow(0 0 6px ${a}88)` }}>{icon}</span>}
-      <span style={{
-        fontSize: 13, fontWeight: 700, color: "#fff",
-        letterSpacing: "0.16em", textTransform: "uppercase",
-      }}>{children}</span>
+      {/* Header bar — black-ish glassy strip with glowing icon + bold label */}
+      <div id={id} style={{
+        display: "flex", alignItems: "center", gap: 12,
+        padding: "14px 16px",
+        background: `linear-gradient(180deg, ${a}1c 0%, rgba(0,0,0,0.45) 100%)`,
+        borderBottom: `1px solid ${a}33`,
+      }}>
+        {icon && <span style={{
+          fontSize: 22, lineHeight: 1,
+          filter: `drop-shadow(0 0 10px ${a})`,
+        }}>{icon}</span>}
+        <span style={{
+          fontSize: 13, fontWeight: 800, color: "#fff",
+          letterSpacing: "0.18em", textTransform: "uppercase",
+          textShadow: `0 0 14px ${a}88`,
+        }}>{title}</span>
+      </div>
+      {/* Body — cards sit inside, on the lighter grey backdrop */}
+      <div style={{
+        padding: 10,
+        display: "flex", flexDirection: "column", gap: 6,
+      }}>{children}</div>
     </div>
   );
 }
@@ -174,44 +192,44 @@ export default function BrainrotAdmin() {
         }}>
           <StatusStrip />
 
-          {/* LIVE — toggle, scheduler, message */}
-          <SectionHeader id="section-live" icon="🔴" accent="#ff4d4d">Live Control</SectionHeader>
-          <CollapsibleCard id="live-event" icon="🔴" title="Live Event" defaultOpen accent="var(--color-red)">
-            <LiveEventBlock onChange={setEventActive} />
-          </CollapsibleCard>
-          <CollapsibleCard id="scheduler" icon="📅" title="Schedule Event" defaultOpen={false}>
-            <EventScheduler />
-          </CollapsibleCard>
-          <CollapsibleCard id="global-message" icon="📢" title="Broadcast Message" defaultOpen={false} forceOpen={eventActive}>
-            <GlobalMessage />
-          </CollapsibleCard>
+          <Section id="section-live" icon="🔴" accent="#ff4d4d" title="Live Control">
+            <CollapsibleCard id="live-event" icon="🔴" title="Live Event" defaultOpen accent="var(--color-red)">
+              <LiveEventBlock onChange={setEventActive} />
+            </CollapsibleCard>
+            <CollapsibleCard id="scheduler" icon="📅" title="Schedule Event" defaultOpen={false}>
+              <EventScheduler />
+            </CollapsibleCard>
+            <CollapsibleCard id="global-message" icon="📢" title="Broadcast Message" defaultOpen={false} forceOpen={eventActive}>
+              <GlobalMessage />
+            </CollapsibleCard>
+          </Section>
 
-          {/* REWARDS — coins, skins */}
-          <SectionHeader id="section-rewards" icon="🎁" accent="#ffd700">Player Rewards</SectionHeader>
-          <CollapsibleCard id="give-coins" icon="🪙" title="Give Coins" defaultOpen={false}>
-            <GiveCoins />
-          </CollapsibleCard>
-          <CollapsibleCard id="give-skin" icon="🎁" title="Give Skin" defaultOpen={false}>
-            <GiveSkin />
-          </CollapsibleCard>
+          <Section id="section-rewards" icon="🎁" accent="#ffd700" title="Player Rewards">
+            <CollapsibleCard id="give-coins" icon="🪙" title="Give Coins" defaultOpen={false}>
+              <GiveCoins />
+            </CollapsibleCard>
+            <CollapsibleCard id="give-skin" icon="🎁" title="Give Skin" defaultOpen={false}>
+              <GiveSkin />
+            </CollapsibleCard>
+          </Section>
 
-          {/* V2 EVENTS — drops + locker */}
-          <SectionHeader id="section-events" icon="⚡" accent="#a259ff">V2 Events</SectionHeader>
-          <CollapsibleCard id="drop-event" icon="🎁" title="Drop Event" defaultOpen={false} accent="rgba(255,200,80,0.5)">
-            <SpawnDropEvent />
-          </CollapsibleCard>
-          <CollapsibleCard id="locker" icon="🔐" title="Locker" defaultOpen={false} accent="#ffd700">
-            <SpawnLocker />
-          </CollapsibleCard>
+          <Section id="section-events" icon="⚡" accent="#a259ff" title="V2 Events">
+            <CollapsibleCard id="drop-event" icon="🎁" title="Drop Event" defaultOpen={false} accent="rgba(255,200,80,0.5)">
+              <SpawnDropEvent />
+            </CollapsibleCard>
+            <CollapsibleCard id="locker" icon="🔐" title="Locker" defaultOpen={false} accent="#ffd700">
+              <SpawnLocker />
+            </CollapsibleCard>
+          </Section>
 
-          {/* DJ BOOTH — vote, effects */}
-          <SectionHeader id="section-djbooth" icon="🎵" accent="#00d4ff">DJ Booth</SectionHeader>
-          <CollapsibleCard id="player-vote" icon="🗳" title="Player Vote" defaultOpen={false}>
-            <PlayerVote />
-          </CollapsibleCard>
-          <CollapsibleCard id="dj-effects" icon="🪩" title="DJ Effects" defaultOpen={false}>
-            <DJEffects />
-          </CollapsibleCard>
+          <Section id="section-djbooth" icon="🎵" accent="#00d4ff" title="DJ Booth">
+            <CollapsibleCard id="player-vote" icon="🗳" title="Player Vote" defaultOpen={false}>
+              <PlayerVote />
+            </CollapsibleCard>
+            <CollapsibleCard id="dj-effects" icon="🪩" title="DJ Effects" defaultOpen={false}>
+              <DJEffects />
+            </CollapsibleCard>
+          </Section>
         </aside>
 
         {/* Drag handle */}
