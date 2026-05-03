@@ -21,15 +21,30 @@ const SPLIT_KEY = "brainrot_admin_split_px";
 const MIN_LEFT = 320;
 const MAX_LEFT = 1100;
 
-function SectionHeader({ id, children }: { id?: string; children: React.ReactNode }) {
+// Bigger, colored section dividers. Each section gets an icon + accent color
+// so the eye snaps to "Live Control" vs "V2 Events" instantly during live
+// admin work — was the small uppercase text + 1px line that all sections
+// shared, which was invisible at a glance.
+function SectionHeader({ id, icon, accent, children }: {
+  id?: string; icon?: string; accent?: string; children: React.ReactNode;
+}) {
+  const a = accent || "var(--color-purple)";
   return (
     <div id={id} style={{
-      fontSize: 10, color: "var(--color-text-muted)",
-      letterSpacing: "0.18em", textTransform: "uppercase",
-      padding: "12px 4px 4px",
-      borderTop: "1px solid var(--color-border)",
-      marginTop: 8,
-    }}>{children}</div>
+      display: "flex", alignItems: "center", gap: 10,
+      marginTop: 24, marginBottom: 4,
+      padding: "10px 12px",
+      borderLeft: `4px solid ${a}`,
+      borderRadius: "0 8px 8px 0",
+      background: `linear-gradient(90deg, ${a}22 0%, transparent 75%)`,
+      boxShadow: `0 0 0 1px ${a}33 inset`,
+    }}>
+      {icon && <span style={{ fontSize: 18, lineHeight: 1, filter: `drop-shadow(0 0 6px ${a}88)` }}>{icon}</span>}
+      <span style={{
+        fontSize: 13, fontWeight: 700, color: "#fff",
+        letterSpacing: "0.16em", textTransform: "uppercase",
+      }}>{children}</span>
+    </div>
   );
 }
 
@@ -160,7 +175,7 @@ export default function BrainrotAdmin() {
           <StatusStrip />
 
           {/* LIVE — toggle, scheduler, message */}
-          <SectionHeader id="section-live">Live Control</SectionHeader>
+          <SectionHeader id="section-live" icon="🔴" accent="#ff4d4d">Live Control</SectionHeader>
           <CollapsibleCard id="live-event" icon="🔴" title="Live Event" defaultOpen accent="var(--color-red)">
             <LiveEventBlock onChange={setEventActive} />
           </CollapsibleCard>
@@ -172,7 +187,7 @@ export default function BrainrotAdmin() {
           </CollapsibleCard>
 
           {/* REWARDS — coins, skins */}
-          <SectionHeader id="section-rewards">Player Rewards</SectionHeader>
+          <SectionHeader id="section-rewards" icon="🎁" accent="#ffd700">Player Rewards</SectionHeader>
           <CollapsibleCard id="give-coins" icon="🪙" title="Give Coins" defaultOpen={false}>
             <GiveCoins />
           </CollapsibleCard>
@@ -181,7 +196,7 @@ export default function BrainrotAdmin() {
           </CollapsibleCard>
 
           {/* V2 EVENTS — drops + locker */}
-          <SectionHeader id="section-events">V2 Events</SectionHeader>
+          <SectionHeader id="section-events" icon="⚡" accent="#a259ff">V2 Events</SectionHeader>
           <CollapsibleCard id="drop-event" icon="🎁" title="Drop Event" defaultOpen={false} accent="rgba(255,200,80,0.5)">
             <SpawnDropEvent />
           </CollapsibleCard>
@@ -190,7 +205,7 @@ export default function BrainrotAdmin() {
           </CollapsibleCard>
 
           {/* DJ BOOTH — vote, effects */}
-          <SectionHeader id="section-djbooth">DJ Booth</SectionHeader>
+          <SectionHeader id="section-djbooth" icon="🎵" accent="#00d4ff">DJ Booth</SectionHeader>
           <CollapsibleCard id="player-vote" icon="🗳" title="Player Vote" defaultOpen={false}>
             <PlayerVote />
           </CollapsibleCard>
