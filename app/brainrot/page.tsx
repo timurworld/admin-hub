@@ -18,6 +18,7 @@ import StatusStrip from "./components/StatusStrip";
 import CollapsibleCard from "./components/CollapsibleCard";
 import BotTools from "./components/BotTools";
 import { useAdminTier } from "@/lib/useAdminTier";
+import { getAdminPlayerCreds, setAdminPlayerCreds, clearAdminPlayerCreds } from "@/lib/adminPlayerAuth";
 
 const SPLIT_KEY = "brainrot_admin_split_px";
 const MIN_LEFT = 320;
@@ -79,7 +80,25 @@ export default function BrainrotAdmin() {
   const online = usePresence();
   // Tier-based gating. isGodAdmin flips true only for tier >= 2 (EmoneyAdmin).
   // TmoneyAdmin (tier 1) sees everything else but not God-only sections.
-  const { isGodAdmin } = useAdminTier();
+  const { tier, isGodAdmin } = useAdminTier();
+  // Track the cached admin username so the header can show who's logged in
+  // and the Switch User button can prompt for a swap.
+  const [currentAdminUsername, setCurrentAdminUsername] = useState<string | null>(null);
+  useEffect(() => {
+    setCurrentAdminUsername(getAdminPlayerCreds()?.username ?? null);
+  }, []);
+
+  const switchAdminUser = () => {
+    const next = window.prompt(
+      `Switch admin (currently: ${currentAdminUsername ?? "none"}).\nEnter the new in-game username:`,
+      "",
+    );
+    if (!next || !next.trim()) return;
+    const pin = window.prompt(`PIN for ${next.trim()}:`);
+    if (!pin || !pin.trim()) return;
+    setAdminPlayerCreds({ username: next.trim(), pin: pin.trim() });
+    window.location.reload();
+  };
 
   // Resizable split between controls (left) and live preview (right). Persisted.
   const [leftWidth, setLeftWidth] = useState<number>(540);
@@ -176,6 +195,21 @@ export default function BrainrotAdmin() {
             <span className="font-mono" style={{ fontSize: 12, color: "var(--color-text-muted)" }}>{playerCount}</span>
             <span style={{ fontSize: 11, color: "var(--color-text-muted)" }}>total</span>
           </div>
+          {/* Switch admin user — prompt for a different in-game username + PIN
+              and reload. Useful for hopping between TmoneyAdmin (tier 1) and
+              EmoneyAdmin (tier 2) to test gated tools. Tier badge shows
+              what permission level is currently active. */}
+          <button onClick={switchAdminUser} title="Switch the in-game admin user (changes which tools are visible)" style={{
+            display: "flex", alignItems: "center", gap: 6,
+            padding: "6px 10px", borderRadius: 8, background: "var(--color-card)",
+            border: `1px solid ${isGodAdmin ? "rgba(255,77,77,0.5)" : "var(--color-border)"}`,
+            color: "#fff", cursor: "pointer", fontSize: 12,
+          }}>
+            <span style={{ fontSize: 13 }}>{isGodAdmin ? "👑" : tier >= 1 ? "🛡️" : "👤"}</span>
+            <span className="font-mono">{currentAdminUsername || "not set"}</span>
+            <span style={{ fontSize: 10, color: "var(--color-text-muted)" }}>(tier {tier})</span>
+            <span style={{ fontSize: 10, color: "var(--color-text-muted)", marginLeft: 4 }}>switch</span>
+          </button>
           <button onClick={async () => {
             await fetch("/api/auth/logout", { method: "POST" });
             window.location.href = "/login";
