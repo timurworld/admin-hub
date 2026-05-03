@@ -286,8 +286,8 @@ export default function BrainrotAdmin() {
               cached in-game PIN. Server-side RPCs still verify admin_tier as
               defense-in-depth. */}
           {isGodSession && (
-            <Section id="section-godadmin" icon="👑" accent="#ff4d4d" title="God Admin">
-              <CollapsibleCard id="bot-tools" icon="🤖" title="Bot Tools" defaultOpen={false}>
+            <Section id="section-godadmin" icon="👑" accent="#ff4d4d" title="Extra tools">
+              <CollapsibleCard id="bot-tools" icon="👥" title="Users" defaultOpen={false}>
                 <BotTools />
               </CollapsibleCard>
             </Section>

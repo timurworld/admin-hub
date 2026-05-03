@@ -11,7 +11,7 @@ import { Card, SectionLabel, Button } from "./Card";
 export default function BotTools() {
   return (
     <Card accent="rgba(255,77,77,0.45)">
-      <SectionLabel>🤖 Bot Tools — God Admin only</SectionLabel>
+      <SectionLabel>👥 Users — Extra tools only</SectionLabel>
 
       <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
         <div style={{ fontSize: 11, color: "var(--color-text-muted)" }}>
