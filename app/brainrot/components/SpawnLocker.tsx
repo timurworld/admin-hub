@@ -46,6 +46,22 @@ const ALL_SKINS = [
 const FUSION_OUTPUT_TIERS = new Set(["Limited", "Mythic"]);
 const OUTPUT_SKINS = ALL_SKINS.filter(s => FUSION_OUTPUT_TIERS.has(s.rarity));
 
+// Tier color hint — matches the in-game rarity tag styles loosely.
+function rarityColor(r: string): string {
+  switch (r) {
+    case "Common":       return "#9aa3ad";
+    case "Rare":         return "#4db8db";
+    case "Legendary":    return "#ff9500";
+    case "Brainrot God": return "#2ecc71";
+    case "Secret":       return "#8b4513";
+    case "OG":           return "#ffd700";
+    case "Prestige":     return "#a259ff";
+    case "Mythic":       return "#ffd700";
+    case "Limited":      return "#ff4d4d";
+    default:             return "var(--color-text-muted)";
+  }
+}
+
 interface Locker {
   id: string;
   name: string;
@@ -69,6 +85,19 @@ export default function SpawnLocker() {
   const [adminOnly, setAdminOnly] = useState(true);
   const [busy, setBusy] = useState(false);
   const [msg, setMsg] = useState("");
+  // Searchable ingredient picker — open=showing the dropdown, query=text filter
+  const [pickerOpen, setPickerOpen] = useState(false);
+  const [pickerQuery, setPickerQuery] = useState("");
+
+  // Available skins for the picker = all minus the ones already in the recipe.
+  // Filter by name or rarity match. Cap visible to 30 so a future 100+ catalog
+  // doesn't tank the dropdown — user can refine the search.
+  const availableSkins = ALL_SKINS.filter(s => {
+    if ((recipe[s.id] || 0) > 0) return false; // hide already-added
+    const q = pickerQuery.trim().toLowerCase();
+    if (!q) return true;
+    return s.name.toLowerCase().includes(q) || s.rarity.toLowerCase().includes(q);
+  }).slice(0, 30);
 
   async function refresh() {
     const { data } = await supabase
@@ -158,19 +187,116 @@ export default function SpawnLocker() {
         <div style={{ fontSize: 11, color: "var(--color-text-muted)", marginTop: 6 }}>
           <strong style={{ color: "#fff" }}>Recipe ingredients</strong> · pick any 2–3 skins · qty per skin
         </div>
-        <div style={{ border: "1px solid var(--color-border)", borderRadius: 6, padding: 6 }}>
-          {ALL_SKINS.map(s => (
-            <div key={"r" + s.id} style={{ display: "flex", alignItems: "center", gap: 8, padding: "2px 0" }}>
-              <span style={{ flex: 1, fontSize: 12, color: "#fff", display: "flex", justifyContent: "space-between", gap: 8 }}>
-                <span>{s.name}</span>
-                <span style={{ fontSize: 10, color: "var(--color-text-muted)", fontFamily: "var(--font-jetbrains)" }}>{s.rarity}</span>
-              </span>
-              <Input type="number" min="0" max="99" style={{ width: 60 }}
-                value={recipe[s.id] ?? 0}
-                onChange={e => setRecipe(r => ({ ...r, [s.id]: Math.max(0, parseInt(e.target.value) || 0) }))}
-              />
+        {/* Selected ingredients — only the skins actually in the recipe show here. */}
+        <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
+          {Object.entries(recipe).filter(([, qty]) => qty > 0).length === 0 && (
+            <div style={{ fontSize: 11, color: "var(--color-text-muted)", padding: "8px 0", fontStyle: "italic" }}>
+              No ingredients selected yet.
             </div>
-          ))}
+          )}
+          {Object.entries(recipe).filter(([, qty]) => qty > 0).map(([sidStr, qty]) => {
+            const sid = parseInt(sidStr);
+            const s = ALL_SKINS.find(x => x.id === sid);
+            if (!s) return null;
+            return (
+              <div key={"sel" + sid} style={{
+                display: "flex", alignItems: "center", gap: 8,
+                padding: "8px 10px", borderRadius: 6,
+                background: "var(--color-card)",
+                border: "1px solid var(--color-border)",
+                borderLeft: `3px solid ${rarityColor(s.rarity)}`,
+              }}>
+                <span style={{ flex: 1, fontSize: 12, color: "#fff" }}>{s.name}</span>
+                <span style={{
+                  fontSize: 10, color: rarityColor(s.rarity),
+                  fontFamily: "var(--font-jetbrains)",
+                  padding: "2px 6px", borderRadius: 4,
+                  background: `${rarityColor(s.rarity)}1a`,
+                }}>{s.rarity}</span>
+                <Input type="number" min="1" max="99" style={{ width: 60 }}
+                  value={qty}
+                  onChange={e => setRecipe(r => ({ ...r, [sid]: Math.max(1, parseInt(e.target.value) || 1) }))}
+                />
+                <button
+                  onClick={() => setRecipe(r => { const n = { ...r }; delete n[sid]; return n; })}
+                  title="Remove from recipe"
+                  style={{
+                    width: 24, height: 24, border: "1px solid var(--color-border)",
+                    background: "var(--color-bg)", color: "var(--color-text-muted)",
+                    borderRadius: 4, cursor: "pointer", fontSize: 14, lineHeight: 1,
+                  }}
+                >×</button>
+              </div>
+            );
+          })}
+        </div>
+
+        {/* Add ingredient — toggle a search-filtered picker. Scales to any catalog size. */}
+        <div style={{ position: "relative" }}>
+          <Button
+            variant="ghost"
+            onClick={() => { setPickerOpen(o => !o); setPickerQuery(""); }}
+            style={{ width: "100%" }}
+          >
+            {pickerOpen ? "Close picker" : "+ Add ingredient"}
+          </Button>
+          {pickerOpen && (
+            <div style={{
+              marginTop: 6, padding: 6,
+              border: "1px solid var(--color-border)",
+              borderRadius: 8, background: "var(--color-bg)",
+            }}>
+              <Input
+                autoFocus
+                placeholder="Search skin name or rarity (e.g. 'mythic', 'rare', 'pucks')"
+                value={pickerQuery}
+                onChange={e => setPickerQuery(e.target.value)}
+                style={{ width: "100%", marginBottom: 6 }}
+              />
+              {availableSkins.length === 0 && (
+                <div style={{ fontSize: 11, color: "var(--color-text-muted)", padding: "6px 8px" }}>
+                  {ALL_SKINS.every(s => (recipe[s.id] || 0) > 0)
+                    ? "All skins are already in the recipe."
+                    : "No matches — try another search term."}
+                </div>
+              )}
+              <div style={{ display: "flex", flexDirection: "column", gap: 2, maxHeight: 360, overflowY: "auto" }}>
+                {availableSkins.map(s => (
+                  <button
+                    key={"pk" + s.id}
+                    onClick={() => {
+                      setRecipe(r => ({ ...r, [s.id]: 1 }));
+                      setPickerQuery("");
+                      setPickerOpen(false);
+                    }}
+                    style={{
+                      display: "flex", alignItems: "center", gap: 8,
+                      width: "100%", padding: "8px 10px",
+                      borderRadius: 6, border: "1px solid transparent",
+                      background: "transparent", color: "#fff",
+                      cursor: "pointer", textAlign: "left", fontSize: 12,
+                      fontFamily: "inherit",
+                    }}
+                    onMouseEnter={e => { (e.currentTarget as HTMLButtonElement).style.background = "var(--color-card)"; }}
+                    onMouseLeave={e => { (e.currentTarget as HTMLButtonElement).style.background = "transparent"; }}
+                  >
+                    <span style={{ flex: 1 }}>{s.name}</span>
+                    <span style={{
+                      fontSize: 10, color: rarityColor(s.rarity),
+                      fontFamily: "var(--font-jetbrains)",
+                      padding: "2px 6px", borderRadius: 4,
+                      background: `${rarityColor(s.rarity)}1a`,
+                    }}>{s.rarity}</span>
+                  </button>
+                ))}
+              </div>
+              {ALL_SKINS.length > 30 && availableSkins.length === 30 && (
+                <div style={{ fontSize: 10, color: "var(--color-text-muted)", padding: "4px 8px", textAlign: "center" }}>
+                  Showing first 30 — refine search for more.
+                </div>
+              )}
+            </div>
+          )}
         </div>
 
         <div style={{ fontSize: 11, color: "var(--color-text-muted)", marginTop: 8 }}>
