@@ -42,6 +42,10 @@ const ALL_BOTS = [
   "TacoSlayer", "NachoSenor", "PancakeMon", "WaffleSlurp", "KetchupKing", "WatermelonWiz",
   "DJDanger99", "RedFoxRunner", "BlueBoltBoy", "NeonGhost", "SlippySocks",
   "CosmicWaffles", "NightOwlNick", "ProtonFizz",
+  // ----- Extension 71-82 (also auto-registered on first spawn) -----
+  "PixelPanic", "SkibidiMaxer", "RizzVortex", "GyattZilla", "GoonFather9",
+  "ChugJugBoss", "WaffleStomper", "CrowdSurfer", "SlayKing77", "NeonNinjaXX",
+  "ShadowSlime", "CrumbleCake",
 ];
 const BOT_PIN = "0000";
 
