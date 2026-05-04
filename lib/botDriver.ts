@@ -247,12 +247,13 @@ class Bot {
     }, delay);
   }
 
-  // Roll for drops on a 5-15s cadence while a drop event is active. Mirrors
-  // a real player tapping — drop_roll has its own server-side cooldown so
-  // hammering it harder doesn't yield more.
+  // Roll for drops on a 1-3s cadence while a drop event is active — mimics
+  // a real player tapping rapidly. Bots are the engine that makes drop pools
+  // actually deplete during a live event; at the previous 5-15s cadence the
+  // 70 bots couldn't keep up with even moderate drop rates.
   private scheduleDropRoll() {
     if (!this.isLive) return;
-    const delay = 5_000 + Math.random() * 10_000;
+    const delay = 1_000 + Math.random() * 2_000;
     this.dropRollTimer = setTimeout(async () => {
       if (!this.isLive) return;
       const drop = coordinator.state.activeDropEvent;

@@ -64,7 +64,7 @@ export default function BotTools() {
           )}
         </div>
 
-        <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr 1fr", gap: 6 }}>
+        <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr 1fr 1fr", gap: 6 }}>
           <Button variant="ghost" disabled={busy || remaining <= 0} onClick={() => onSpawn(10)}>
             +10
           </Button>
@@ -76,6 +76,9 @@ export default function BotTools() {
           </Button>
           <Button variant="ghost" disabled={busy || remaining <= 0} onClick={() => onSpawn(25)}>
             +25
+          </Button>
+          <Button variant="ghost" disabled={busy || remaining <= 0} onClick={() => onSpawn(30)}>
+            +30
           </Button>
         </div>
         <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 6 }}>
