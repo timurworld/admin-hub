@@ -64,18 +64,26 @@ export default function BotTools() {
           )}
         </div>
 
-        <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 6 }}>
+        <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr 1fr", gap: 6 }}>
           <Button variant="ghost" disabled={busy || remaining <= 0} onClick={() => onSpawn(10)}>
-            + Spawn 10 players
+            +10
           </Button>
-          <Button variant="ghost" disabled={busy || remaining <= 0} onClick={() => onSpawn(30)}>
-            + Spawn 30 players
+          <Button variant="ghost" disabled={busy || remaining <= 0} onClick={() => onSpawn(15)}>
+            +15
           </Button>
+          <Button variant="ghost" disabled={busy || remaining <= 0} onClick={() => onSpawn(20)}>
+            +20
+          </Button>
+          <Button variant="ghost" disabled={busy || remaining <= 0} onClick={() => onSpawn(25)}>
+            +25
+          </Button>
+        </div>
+        <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 6 }}>
           <Button variant="ghost" disabled={busy || remaining <= 0} onClick={() => onSpawn(ROSTER_SIZE)}>
-            + Spawn full roster ({ROSTER_SIZE})
+            + Full roster ({ROSTER_SIZE})
           </Button>
           <Button variant="ghost" disabled={busy || liveCount === 0} onClick={onStop}>
-            ⏹ Stop all players
+            ⏹ Stop all
           </Button>
         </div>
       </div>

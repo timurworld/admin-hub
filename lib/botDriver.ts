@@ -19,7 +19,11 @@ const SUPABASE_ANON_KEY =
   "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImV6dG1jZmdocWVoZWlhbWh5bmVyIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzYwNDU2MzksImV4cCI6MjA5MTYyMTYzOX0.pVfomYODplqr_AI2hNYqyVp0oYx_2EHdutzxAj15XHg";
 const GAME_ID = "brainrot";
 
+// 70-bot roster. First 36 are the original cast (already seeded in DB);
+// the next 34 are added for higher-headcount demos and auto-register on
+// first spawn (see Bot.loadCreds). All bots use PIN "0000" by convention.
 const ALL_BOTS = [
+  // ----- Original 36 (seeded) -----
   "FanumKid", "TuahKing", "RizzMaster", "OhioMain", "SigmaBoy", "BrainBoss", "SkibidiChad",
   "ToiletSkibidi", "RizzGodKing", "SigmaBossX",
   "ProGamer42", "zombiekid77", "NoobSlay3r", "PixelKnight", "SnipeKid44", "xX_Sn1per_Xx",
@@ -29,7 +33,17 @@ const ALL_BOTS = [
   "ToadKnight7", "LemonSlice99",
   "Waves07", "CloudHopper9", "BlocxyKing", "RoboBlast",
   "PixelSquid",
+  // ----- Extension 37-70 (auto-registered on first spawn) -----
+  "GyattLord", "OhioRizz", "GooningChad", "MewingKing", "DripGodX", "SkibidiTuah",
+  "BuffMewer", "SigmaSlam",
+  "BlocxyBuilder", "AdoptMeAce", "BedwarsPro22", "ArsenalSnipe", "NoobZoneXX",
+  "StealthyCheetah", "MoodyMonkey", "ZenSloth", "ThunderDolphin", "GalaxyWolf",
+  "JadeFox", "RubberDucky9",
+  "TacoSlayer", "NachoSenor", "PancakeMon", "WaffleSlurp", "KetchupKing", "WatermelonWiz",
+  "DJDanger99", "RedFoxRunner", "BlueBoltBoy", "NeonGhost", "SlippySocks",
+  "CosmicWaffles", "NightOwlNick", "ProtonFizz",
 ];
+const BOT_PIN = "0000";
 
 const TICK_MIN = 80;
 const TICK_MAX = 450;
@@ -152,14 +166,27 @@ class Bot {
     this.client = createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
   }
 
-  // Load player_id + pin once per bot. Bots without a row in players just
-  // skip RPC actions silently — presence + ticks still work.
+  // Load player_id + pin once per bot. Self-bootstraps: if no row exists,
+  // inserts one with the standard bot PIN "0000" and creates the matching
+  // leaderboard entry. This is what lets the extended roster (37-70) work
+  // on first spawn without a separate seed migration.
   private async loadCreds(): Promise<BotCreds | null> {
     if (this.creds) return this.creds;
     const { data } = await this.client.from("players")
       .select("id, pin").ilike("username", this.name).maybeSingle();
-    if (!data?.id || !data?.pin) return null;
-    this.creds = { player_id: data.id, pin: data.pin };
+    if (data?.id && data?.pin) {
+      this.creds = { player_id: data.id, pin: data.pin };
+      return this.creds;
+    }
+    // Auto-register
+    const { data: created } = await this.client.from("players")
+      .insert({ username: this.key, pin: BOT_PIN })
+      .select("id, pin").maybeSingle();
+    if (!created?.id) return null;
+    await this.client.from("leaderboard")
+      .insert({ player_id: created.id, username: this.key })
+      .then(() => {});
+    this.creds = { player_id: created.id, pin: created.pin };
     return this.creds;
   }
 
