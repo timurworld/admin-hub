@@ -80,6 +80,12 @@ type CoordEvent =
 class Coordinator {
   private client: SupabaseClient;
   private channel: RealtimeChannel | null = null;
+  // Shared emote broadcast channel. One subscribe + one send-channel for the
+  // whole roster so we don't open 82 parallel WebSocket subscriptions, and
+  // so bots can't silently drop emotes by sending before their own channel
+  // finished its SUBSCRIBED handshake.
+  private emoteChannel: RealtimeChannel | null = null;
+  private emoteReady = false;
   private cutoffInterval: ReturnType<typeof setInterval> | null = null;
   state: CoordinatorState = { activeDropEvent: null, activeLocker: null, topFiveCutoff: null };
   private listeners = new Set<Listener>();
@@ -117,6 +123,29 @@ class Coordinator {
 
     await this.refreshTopFiveCutoff();
     this.cutoffInterval = setInterval(() => { this.refreshTopFiveCutoff().catch(() => {}); }, 60_000);
+
+    // Spin up the shared emote channel and wait for SUBSCRIBED so first
+    // emote sends actually land (broadcast drops silently before then).
+    this.emoteChannel = this.client.channel("brainrot:emotes");
+    await new Promise<void>((resolve) => {
+      this.emoteChannel!.subscribe((status) => {
+        if (status === "SUBSCRIBED") { this.emoteReady = true; resolve(); }
+      });
+      // Don't block startup forever if realtime is being slow
+      setTimeout(() => resolve(), 5000);
+    });
+  }
+
+  // Bots route every emote through here so they all share one ready channel.
+  // No-op until SUBSCRIBED to avoid the silent-drop window.
+  async broadcastEmote(username: string, emote: string) {
+    if (!this.emoteReady || !this.emoteChannel) return;
+    try {
+      await this.emoteChannel.send({
+        type: "broadcast", event: "emote",
+        payload: { username, emote },
+      });
+    } catch {}
 
     this.channel = this.client.channel("bot-coordinator")
       .on("postgres_changes", { event: "*", schema: "public", table: "drop_events" }, (p) => {
@@ -162,6 +191,11 @@ class Coordinator {
       await this.client.removeChannel(this.channel).catch(() => {});
       this.channel = null;
     }
+    if (this.emoteChannel) {
+      await this.client.removeChannel(this.emoteChannel).catch(() => {});
+      this.emoteChannel = null;
+      this.emoteReady = false;
+    }
     if (this.cutoffInterval) {
       clearInterval(this.cutoffInterval);
       this.cutoffInterval = null;
@@ -178,7 +212,6 @@ class Bot {
   key: string;
   client: SupabaseClient;
   presence: RealtimeChannel | null = null;
-  emoteChannel: RealtimeChannel | null = null;
   presenceKeepalive: ReturnType<typeof setInterval> | null = null;
   tickTimer: ReturnType<typeof setInterval> | null = null;
   ambientTimer: ReturnType<typeof setTimeout> | null = null;
@@ -219,18 +252,13 @@ class Bot {
   }
 
   private fireEmote(pool: string[]) {
-    if (!this.isLive || !this.emoteChannel) return;
+    if (!this.isLive) return;
     if (Math.random() > EMOTE_REACT_CHANCE) return;
     const delay = 400 + Math.random() * 3100;
-    setTimeout(async () => {
+    setTimeout(() => {
       if (!this.isLive) return;
       const emote = pool[Math.floor(Math.random() * pool.length)];
-      try {
-        await this.emoteChannel?.send({
-          type: "broadcast", event: "emote",
-          payload: { username: this.name, emote },
-        });
-      } catch {}
+      coordinator.broadcastEmote(this.name, emote);
     }, delay);
   }
 
@@ -354,22 +382,16 @@ class Bot {
       .update({ equipped_skin: pickedSkin })
       .ilike("username", this.name).then(() => {});
 
-    // Emote channel — both ambient and reactive flow through here
-    this.emoteChannel = this.client.channel("brainrot:emotes");
-    this.emoteChannel.subscribe();
-
+    // Ambient emotes — route through the shared coordinator channel so all
+    // bots' broadcasts go out via one already-subscribed channel (no race,
+    // no per-bot WebSocket overhead).
     const scheduleAmbient = () => {
       if (!this.isLive) return;
       const delay = 40_000 + Math.random() * 80_000;
-      this.ambientTimer = setTimeout(async () => {
+      this.ambientTimer = setTimeout(() => {
         if (!this.isLive) return;
         const emote = AMBIENT_POOL[Math.floor(Math.random() * AMBIENT_POOL.length)];
-        try {
-          await this.emoteChannel?.send({
-            type: "broadcast", event: "emote",
-            payload: { username: this.name, emote },
-          });
-        } catch {}
+        coordinator.broadcastEmote(this.name, emote);
         scheduleAmbient();
       }, delay);
     };
@@ -394,10 +416,6 @@ class Bot {
     if (this.dropRollTimer) { clearTimeout(this.dropRollTimer); this.dropRollTimer = null; }
     if (this.lockerCheckTimer) { clearTimeout(this.lockerCheckTimer); this.lockerCheckTimer = null; }
     if (this.unsubCoord) { this.unsubCoord(); this.unsubCoord = null; }
-    if (this.emoteChannel) {
-      await this.client.removeChannel(this.emoteChannel).catch(() => {});
-      this.emoteChannel = null;
-    }
     if (this.presence) {
       await this.presence.untrack().catch(() => {});
       await this.client.removeChannel(this.presence).catch(() => {});
