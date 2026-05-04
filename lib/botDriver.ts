@@ -62,6 +62,10 @@ interface BotCreds { player_id: string; pin: string }
 interface CoordinatorState {
   activeDropEvent: { id: string } | null;
   activeLocker: { id: string; recipe: { skin_id: number; qty: number }[]; output_skin_id: number } | null;
+  // Hard ceiling on bot lifetime_points so bots never overtake the real top 5.
+  // Refreshed periodically — null while initial fetch is pending (bots skip
+  // ticks during that brief window to be safe).
+  topFiveCutoff: number | null;
 }
 
 type Listener = (e: CoordEvent) => void;
@@ -72,8 +76,21 @@ type CoordEvent =
 class Coordinator {
   private client: SupabaseClient;
   private channel: RealtimeChannel | null = null;
-  state: CoordinatorState = { activeDropEvent: null, activeLocker: null };
+  private cutoffInterval: ReturnType<typeof setInterval> | null = null;
+  state: CoordinatorState = { activeDropEvent: null, activeLocker: null, topFiveCutoff: null };
   private listeners = new Set<Listener>();
+
+  private async refreshTopFiveCutoff() {
+    const { data } = await this.client.from("leaderboard")
+      .select("lifetime_points")
+      .order("lifetime_points", { ascending: false })
+      .limit(5);
+    if (data && data.length >= 5) {
+      // Bots must stay strictly below 5th place. We cap with a 1% safety
+      // margin so a fluctuating 5th can't push a bot momentarily above.
+      this.state.topFiveCutoff = Math.floor(data[4].lifetime_points * 0.99);
+    }
+  }
 
   constructor() {
     this.client = createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
@@ -93,6 +110,9 @@ class Coordinator {
     const { data: locker } = await this.client.from("lockers")
       .select("id, recipe, output_skin_id").eq("game_id", GAME_ID).eq("status", "active").maybeSingle();
     if (locker) this.state.activeLocker = locker as CoordinatorState["activeLocker"];
+
+    await this.refreshTopFiveCutoff();
+    this.cutoffInterval = setInterval(() => { this.refreshTopFiveCutoff().catch(() => {}); }, 60_000);
 
     this.channel = this.client.channel("bot-coordinator")
       .on("postgres_changes", { event: "*", schema: "public", table: "drop_events" }, (p) => {
@@ -137,6 +157,10 @@ class Coordinator {
     if (this.channel) {
       await this.client.removeChannel(this.channel).catch(() => {});
       this.channel = null;
+    }
+    if (this.cutoffInterval) {
+      clearInterval(this.cutoffInterval);
+      this.cutoffInterval = null;
     }
   }
 }
@@ -306,10 +330,16 @@ class Bot {
         .select("player_id, lifetime_points")
         .ilike("username", this.name).maybeSingle();
       if (!row) return;
+      // Top-5 protection — never overtake the 5th-place real player.
+      const cutoff = coordinator.state.topFiveCutoff;
+      const current = row.lifetime_points || 0;
+      if (cutoff !== null && current >= cutoff) return; // already at the ceiling, freeze
       let gain = TICK_MIN + Math.floor(Math.random() * (TICK_MAX - TICK_MIN));
       if (inBurst) gain *= 5;
+      const next = cutoff !== null ? Math.min(current + gain, cutoff) : current + gain;
+      if (next === current) return;
       await this.client.from("leaderboard")
-        .update({ lifetime_points: (row.lifetime_points || 0) + gain })
+        .update({ lifetime_points: next })
         .eq("player_id", row.player_id);
     }, personalTickMs);
 
