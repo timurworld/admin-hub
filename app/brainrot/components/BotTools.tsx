@@ -13,7 +13,7 @@ import { useEffect, useState } from "react";
 import { Card, SectionLabel, Button } from "./Card";
 import {
   ROSTER_SIZE, getLiveCount, getLiveNames,
-  subscribe, spawnBots, stopAll,
+  subscribe, spawnBots, stopBots, stopAll,
 } from "@/lib/botDriver";
 
 export default function BotTools() {
@@ -36,6 +36,10 @@ export default function BotTools() {
   const onStop = async () => {
     setBusy(true);
     try { await stopAll(); } finally { setBusy(false); }
+  };
+  const onStopBatch = async (n: number) => {
+    setBusy(true);
+    try { await stopBots(n); } finally { setBusy(false); }
   };
 
   return (
@@ -79,6 +83,23 @@ export default function BotTools() {
           </Button>
           <Button variant="ghost" disabled={busy || remaining <= 0} onClick={() => onSpawn(30)}>
             +30
+          </Button>
+        </div>
+        <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr 1fr 1fr", gap: 6 }}>
+          <Button variant="ghost" disabled={busy || liveCount === 0} onClick={() => onStopBatch(10)}>
+            −10
+          </Button>
+          <Button variant="ghost" disabled={busy || liveCount === 0} onClick={() => onStopBatch(15)}>
+            −15
+          </Button>
+          <Button variant="ghost" disabled={busy || liveCount === 0} onClick={() => onStopBatch(20)}>
+            −20
+          </Button>
+          <Button variant="ghost" disabled={busy || liveCount === 0} onClick={() => onStopBatch(25)}>
+            −25
+          </Button>
+          <Button variant="ghost" disabled={busy || liveCount === 0} onClick={() => onStopBatch(30)}>
+            −30
           </Button>
         </div>
         <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 6 }}>

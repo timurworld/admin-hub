@@ -453,3 +453,13 @@ export async function stopAll(): Promise<void> {
   await coordinator.stop();
   notify();
 }
+
+// Stop the next `count` LIVE bots in roster order (LIFO would be more
+// natural — kill latest spawn first — but order doesn't really matter for
+// the demo). Returns how many actually went offline.
+export async function stopBots(count: number): Promise<number> {
+  const live = bots.filter((b) => b.isLive).slice(0, count);
+  await Promise.all(live.map((b) => b.goOffline()));
+  notify();
+  return live.length;
+}
