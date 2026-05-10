@@ -52,7 +52,10 @@ export function Button({ children, variant = "primary", ...props }: {
     primary: { bg: "var(--color-purple)", text: "#fff" },
     success: { bg: "var(--color-green)", text: "#000" },
     danger: { bg: "var(--color-red)", text: "#fff" },
-    ghost: { bg: "transparent", text: "var(--color-text-muted)" },
+    // Ghost text is white so enabled buttons read as clearly clickable. The
+    // opacity-0.5 disabled state below dims them — using muted text here
+    // made enabled and disabled visually indistinguishable.
+    ghost: { bg: "transparent", text: "#fff" },
     disabled: { bg: "var(--color-border)", text: "var(--color-text-muted)" },
   }[variant];
   return (
