@@ -76,7 +76,11 @@ interface DropEvent {
 export default function SpawnDropEvent() {
   const [active, setActive] = useState<DropEvent[]>([]);
   const [name, setName] = useState("Sportini Storm");
-  const [pool, setPool] = useState<{ [skinId: number]: number }>({ 20: 300, 21: 300 });
+  // Default stock per skin = 50 (was 300). 300 was way too high for live
+  // events — pool sat half-full for hours. 50 drains in 10-15 min with
+  // ~80 active players + bots, which feels right for the typical Sunday
+  // Admin Abuse window.
+  const [pool, setPool] = useState<{ [skinId: number]: number }>({ 20: 50, 21: 50 });
   const [baselineRate, setBaselineRate] = useState(500);
   const [waveMultiplier, setWaveMultiplier] = useState(10);
   const [waveDuration, setWaveDuration] = useState(60);
@@ -288,7 +292,7 @@ export default function SpawnDropEvent() {
                   <button
                     key={"pk" + s.id}
                     onClick={() => {
-                      setPool(p => ({ ...p, [s.id]: 100 }));
+                      setPool(p => ({ ...p, [s.id]: 50 }));
                       setPickerQuery("");
                       setPickerOpen(false);
                     }}
