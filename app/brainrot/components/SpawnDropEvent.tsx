@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { supabase } from "@/lib/supabase";
 import { Card, Input, Button, SectionLabel } from "./Card";
 import { ensureAdminPlayerCreds, clearAdminPlayerCreds } from "@/lib/adminPlayerAuth";
@@ -112,34 +112,47 @@ export default function SpawnDropEvent() {
     return () => { supabase.removeChannel(sub); };
   }, []);
 
+  // Synchronous lock — useState.busy alone wasn't enough to debounce, because
+  // the button's `disabled={busy}` check is React state and doesn't propagate
+  // until the next render. Rapid clicks (3 in <300ms) all entered spawn() in
+  // parallel and each fired drop_event_spawn before setBusy(true) had any
+  // visible effect. busyRef.current updates synchronously so a re-entrant call
+  // sees the lock immediately and bails.
+  const busyRef = useRef(false);
   async function spawn() {
-    setMsg("");
-    const creds = await ensureAdminPlayerCreds();
-    if (!creds) { setMsg("Need admin credentials to spawn."); return; }
-    const poolEntries = Object.entries(pool)
-      .map(([sid, total]) => ({ skin_id: parseInt(sid), total: total }))
-      .filter(p => p.total > 0);
-    if (poolEntries.length === 0) { setMsg("Pick at least one skin with stock."); return; }
+    if (busyRef.current) return;
+    busyRef.current = true;
     setBusy(true);
-    const { error } = await supabase.rpc("drop_event_spawn", {
-      p_admin_username: creds.username,
-      p_admin_pin: creds.pin,
-      p_name: name,
-      p_pool: poolEntries,
-      p_baseline_rate_inv: baselineRate,
-      p_wave_frequency_min: waveFrequency,
-      p_wave_duration_sec: waveDuration,
-      p_wave_multiplier: waveMultiplier,
-      p_duration_hours: duration,
-      p_admin_only: adminOnly,
-    });
-    setBusy(false);
-    if (error) {
-      setMsg("Error: " + error.message);
-      if (/unauthorized|forbidden/i.test(error.message)) clearAdminPlayerCreds();
-    } else {
-      setMsg(`✓ Spawned "${name}" (${adminOnly ? "DRY-RUN" : "PUBLIC"})`);
-      setTimeout(() => setMsg(""), 4000);
+    setMsg("");
+    try {
+      const creds = await ensureAdminPlayerCreds();
+      if (!creds) { setMsg("Need admin credentials to spawn."); return; }
+      const poolEntries = Object.entries(pool)
+        .map(([sid, total]) => ({ skin_id: parseInt(sid), total: total }))
+        .filter(p => p.total > 0);
+      if (poolEntries.length === 0) { setMsg("Pick at least one skin with stock."); return; }
+      const { error } = await supabase.rpc("drop_event_spawn", {
+        p_admin_username: creds.username,
+        p_admin_pin: creds.pin,
+        p_name: name,
+        p_pool: poolEntries,
+        p_baseline_rate_inv: baselineRate,
+        p_wave_frequency_min: waveFrequency,
+        p_wave_duration_sec: waveDuration,
+        p_wave_multiplier: waveMultiplier,
+        p_duration_hours: duration,
+        p_admin_only: adminOnly,
+      });
+      if (error) {
+        setMsg("Error: " + error.message);
+        if (/unauthorized|forbidden/i.test(error.message)) clearAdminPlayerCreds();
+      } else {
+        setMsg(`✓ Spawned "${name}" (${adminOnly ? "DRY-RUN" : "PUBLIC"})`);
+        setTimeout(() => setMsg(""), 4000);
+      }
+    } finally {
+      busyRef.current = false;
+      setBusy(false);
     }
   }
 

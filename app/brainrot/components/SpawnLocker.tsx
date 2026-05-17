@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { supabase } from "@/lib/supabase";
 import { Card, Input, Button, SectionLabel } from "./Card";
 import { ensureAdminPlayerCreds, clearAdminPlayerCreds } from "@/lib/adminPlayerAuth";
@@ -116,36 +116,46 @@ export default function SpawnLocker() {
     return () => { supabase.removeChannel(sub); };
   }, []);
 
+  // Synchronous lock — see SpawnDropEvent.tsx for the full reasoning.
+  // useState.busy alone doesn't debounce rapid clicks because React state
+  // doesn't propagate until next render. busyRef.current updates synchronously.
+  const busyRef = useRef(false);
   async function spawn() {
-    setMsg("");
-    const creds = await ensureAdminPlayerCreds();
-    if (!creds) { setMsg("Need admin credentials."); return; }
-    const recipeArr = Object.entries(recipe)
-      .map(([sid, qty]) => ({ skin_id: parseInt(sid), qty }))
-      .filter(r => r.qty > 0);
-    if (recipeArr.length === 0) { setMsg("Add at least one ingredient."); return; }
-    if (recipeArr.some(r => r.skin_id === outputSkinId)) {
-      setMsg("Output can't be one of the ingredients.");
-      return;
-    }
+    if (busyRef.current) return;
+    busyRef.current = true;
     setBusy(true);
-    const { error } = await supabase.rpc("locker_spawn", {
-      p_admin_username: creds.username,
-      p_admin_pin: creds.pin,
-      p_name: name,
-      p_recipe: recipeArr,
-      p_output_skin_id: outputSkinId,
-      p_total_stock: totalStock,
-      p_duration_hours: duration,
-      p_admin_only: adminOnly,
-    });
-    setBusy(false);
-    if (error) {
-      setMsg("Error: " + error.message);
-      if (/unauthorized|forbidden/i.test(error.message)) clearAdminPlayerCreds();
-    } else {
-      setMsg(`✓ Spawned "${name}" (${adminOnly ? "DRY-RUN" : "PUBLIC"})`);
-      setTimeout(() => setMsg(""), 4000);
+    setMsg("");
+    try {
+      const creds = await ensureAdminPlayerCreds();
+      if (!creds) { setMsg("Need admin credentials."); return; }
+      const recipeArr = Object.entries(recipe)
+        .map(([sid, qty]) => ({ skin_id: parseInt(sid), qty }))
+        .filter(r => r.qty > 0);
+      if (recipeArr.length === 0) { setMsg("Add at least one ingredient."); return; }
+      if (recipeArr.some(r => r.skin_id === outputSkinId)) {
+        setMsg("Output can't be one of the ingredients.");
+        return;
+      }
+      const { error } = await supabase.rpc("locker_spawn", {
+        p_admin_username: creds.username,
+        p_admin_pin: creds.pin,
+        p_name: name,
+        p_recipe: recipeArr,
+        p_output_skin_id: outputSkinId,
+        p_total_stock: totalStock,
+        p_duration_hours: duration,
+        p_admin_only: adminOnly,
+      });
+      if (error) {
+        setMsg("Error: " + error.message);
+        if (/unauthorized|forbidden/i.test(error.message)) clearAdminPlayerCreds();
+      } else {
+        setMsg(`✓ Spawned "${name}" (${adminOnly ? "DRY-RUN" : "PUBLIC"})`);
+        setTimeout(() => setMsg(""), 4000);
+      }
+    } finally {
+      busyRef.current = false;
+      setBusy(false);
     }
   }
 
