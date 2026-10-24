@@ -16,32 +16,58 @@ import { ensureAdminPlayerCreds, clearAdminPlayerCreds } from "@/lib/adminPlayer
 //
 // Each entry shows rarity in the label so admins know what tier they're
 // putting in the pool.
+// Mirrors LIMITED_SKIN_IDS in drop_event_spawn (migration 31). Limited skins
+// are fusion-only and Divine is points-only, so neither may sit in a drop
+// pool; the RPC raises LIMITED_NOT_DROPPABLE if one is submitted.
+const NOT_DROPPABLE = new Set([22, 27, 31, 40, 45, 46]);
+
 const ALL_SKINS = [
-  { id: 1,  name: "Noobini Lovini",       rarity: "Common"       },
-  { id: 2,  name: "Romantini Grandini",   rarity: "Common"       },
-  { id: 3,  name: "Lovini Lovini Lovini", rarity: "Brainrot God" },
-  { id: 4,  name: "Teddini & Robotini",   rarity: "Legendary"    },
-  { id: 5,  name: "Noobini Partini",      rarity: "Brainrot God" },
-  { id: 6,  name: "Cakini Presintini",    rarity: "Secret"       },
-  { id: 7,  name: "Lovini Rosetti",       rarity: "Rare"         },
-  { id: 8,  name: "Heartini Smilekurro",  rarity: "Common"       },
-  { id: 9,  name: "Dragini Partini",      rarity: "OG"           },
-  { id: 10, name: "Cupidini Sahuroni",    rarity: "Legendary"    },
-  { id: 11, name: "Rositti Tueletti",     rarity: "Rare"         },
-  { id: 12, name: "Birthdayini Cardini",  rarity: "Brainrot God" },
-  { id: 13, name: "Cakini Elephantini",   rarity: "OG"           },
-  { id: 15, name: "Pizzini Partyini",     rarity: "Brainrot God" },
-  { id: 18, name: "Noo Mio Heartini",     rarity: "Rare"         },
-  { id: 19, name: "Cupidini Hotspottini", rarity: "Legendary"    },
-  { id: 20, name: "Stick Stick",          rarity: "Secret",      tag: "Sportini" },
-  { id: 21, name: "No My Pucks",          rarity: "Secret",      tag: "Sportini" },
-  // 22 Hockey Bros — Limited, gated.
-  { id: 23, name: "Sushiro & Soyaro",     rarity: "Prestige"     },
-  { id: 24, name: "Kingurini Orangini",   rarity: "Prestige"     },
-  { id: 25, name: "Auraberry",            rarity: "Prestige"     },
-  { id: 26, name: "Cupideini Hockini",    rarity: "Mythic",      tag: "Sportini" },
-  // 27 Los Hockeys — Limited, gated.
+  { id: 1 , name: "Noobini Lovini",        rarity: "Common" },
+  { id: 2 , name: "Romantini Grandini",    rarity: "Common" },
+  { id: 3 , name: "Lovini Lovini Lovini",  rarity: "Brainrot God" },
+  { id: 4 , name: "Teddini & Robotini",    rarity: "Legendary" },
+  { id: 5 , name: "Noobini Partini",       rarity: "Brainrot God" },
+  { id: 6 , name: "Cakini Presintini",     rarity: "Secret" },
+  { id: 7 , name: "Lovini Rosetti",        rarity: "Rare" },
+  { id: 8 , name: "Heartini Smilekurro",   rarity: "Common" },
+  { id: 9 , name: "Dragini Partini",       rarity: "OG" },
+  { id: 10, name: "Cupidini Sahuroni",     rarity: "Legendary" },
+  { id: 11, name: "Rositti Tueletti",      rarity: "Rare" },
+  { id: 12, name: "Birthdayini Cardini",   rarity: "Brainrot God" },
+  { id: 13, name: "Cakini Elephantini",    rarity: "OG" },
+  { id: 15, name: "Pizzini Partyini",      rarity: "Brainrot God" },
+  { id: 18, name: "Noo Mio Heartini",      rarity: "Rare" },
+  { id: 19, name: "Cupidini Hotspottini",  rarity: "Legendary" },
+  { id: 20, name: "Stick Stick",           rarity: "Secret", tag: "Sportini" },
+  { id: 21, name: "No My Pucks",           rarity: "Secret", tag: "Sportini" },
+  { id: 22, name: "Hockey Bros",           rarity: "Limited", tag: "Sportini" },
+  { id: 23, name: "Sushiro & Soyaro",      rarity: "Prestige" },
+  { id: 24, name: "Kingurini Orangini",    rarity: "Prestige" },
+  { id: 25, name: "Auraberry",             rarity: "Prestige" },
+  { id: 26, name: "Cupideini Hockini",     rarity: "Mythic", tag: "Sportini" },
+  { id: 27, name: "Los Hockeys",           rarity: "Limited", tag: "Sportini" },
+  { id: 28, name: "Popini Itini",          rarity: "Secret", tag: "Fidgetini" },
+  { id: 29, name: "Fidgetini Cubini",      rarity: "Secret", tag: "Fidgetini" },
+  { id: 30, name: "Dragini Sqishini",      rarity: "Mythic", tag: "Fidgetini" },
+  { id: 31, name: "La Fidget Combination", rarity: "Limited", tag: "Fidgetini" },
+  { id: 32, name: "Spinirino",             rarity: "Secret", tag: "Fidgetini" },
+  { id: 33, name: "Stressini Ballini",     rarity: "Secret", tag: "Fidgetini" },
+  { id: 34, name: "Bobini Lovini",         rarity: "Secret", tag: "Lovini" },
+  { id: 35, name: "Cappy Family",          rarity: "Rare", tag: "Lovini" },
+  { id: 36, name: "Chillen Lemonade",      rarity: "Secret", tag: "Summerini" },
+  { id: 37, name: "Cupcakini Sweetini",    rarity: "Secret", tag: "Lovini" },
+  { id: 38, name: "Cuppini Triondini",     rarity: "Legendary", tag: "Summerini" },
+  { id: 39, name: "Lemon Lemon Sahur",     rarity: "Rare", tag: "Summerini" },
+  { id: 40, name: "Lovini Vibini",         rarity: "Limited", tag: "Lovini" },
+  { id: 41, name: "Toastini Butterini",    rarity: "Rare", tag: "Lovini" },
+  { id: 42, name: "Candini Bucketini",     rarity: "Common", tag: "Halloween 2026" },
+  { id: 43, name: "Ghostini Mechini",      rarity: "Epic", tag: "Halloween 2026" },
+  { id: 44, name: "Frankenstini Squalini", rarity: "Legendary", tag: "Halloween 2026" },
+  { id: 45, name: "Vampire Dragini",       rarity: "Divine", tag: "Halloween 2026" },
+  { id: 46, name: "Headlessini Pumpkini",  rarity: "Divine", tag: "Halloween 2026" },
 ];
+
+const DROPPABLE_SKINS = ALL_SKINS.filter(s => !NOT_DROPPABLE.has(s.id));
 
 // Tier color hint — matches the in-game rarity styling loosely.
 function rarityColor(r: string): string {
@@ -88,7 +114,7 @@ export default function SpawnDropEvent() {
   // Searchable picker for the drop pool — same pattern as SpawnLocker recipe.
   const [pickerOpen, setPickerOpen] = useState(false);
   const [pickerQuery, setPickerQuery] = useState("");
-  const availableSkins = ALL_SKINS.filter(s => {
+  const availableSkins = DROPPABLE_SKINS.filter(s => {
     if ((pool[s.id] || 0) > 0) return false;
     const q = pickerQuery.trim().toLowerCase();
     if (!q) return true;
@@ -282,7 +308,7 @@ export default function SpawnDropEvent() {
               />
               {availableSkins.length === 0 && (
                 <div style={{ fontSize: 11, color: "var(--color-text-muted)", padding: "6px 8px" }}>
-                  {ALL_SKINS.every(s => (pool[s.id] || 0) > 0)
+                  {DROPPABLE_SKINS.every(s => (pool[s.id] || 0) > 0)
                     ? "All skins are already in the pool."
                     : "No matches — try another search term."}
                 </div>
@@ -317,7 +343,7 @@ export default function SpawnDropEvent() {
                   </button>
                 ))}
               </div>
-              {ALL_SKINS.length > 30 && availableSkins.length === 30 && (
+              {DROPPABLE_SKINS.length > 30 && availableSkins.length === 30 && (
                 <div style={{ fontSize: 10, color: "var(--color-text-muted)", padding: "4px 8px", textAlign: "center" }}>
                   Showing first 30 — refine search for more.
                 </div>
