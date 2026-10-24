@@ -18,5 +18,6 @@ export const EFFECTS = [
   { id: "tsunami", emoji: "🌊", name: "Coin Tsunami", color: "#00d4ff" },
   { id: "lightning", emoji: "⚡", name: "Lightning Rage", color: "#ffe23d" },
   { id: "bomb", emoji: "💣", name: "Brainrot Bomb", color: "#ff4a4a" },
+  { id: "candy", emoji: "🍬", name: "Candy Rain", color: "#FF7A1A" },
   { id: "crowd", emoji: "🎤", name: "Crowd Goes Wild", color: "#00e87a" },
 ];
