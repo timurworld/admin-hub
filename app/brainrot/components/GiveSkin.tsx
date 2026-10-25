@@ -69,10 +69,14 @@ export default function GiveSkin() {
 
   useEffect(() => {
     async function fetchPlayers() {
-      const { data } = await supabase.from("leaderboard")
-        .select("username, player_id")
-        .order("lifetime_points", { ascending: false }).limit(100);
-      if (data) setPlayers(data);
+      // Read every player, not the leaderboard top 100. Ordering by
+      // lifetime_points meant new accounts -- who have the fewest points --
+      // were never in the list, so they could not be picked to receive a
+      // gift at all.
+      const { data } = await supabase.from("players")
+        .select("id, username")
+        .order("username", { ascending: true }).limit(2000);
+      if (data) setPlayers(data.map(p => ({ username: p.username, player_id: p.id })));
     }
     fetchPlayers();
     const int = setInterval(fetchPlayers, 10_000);
