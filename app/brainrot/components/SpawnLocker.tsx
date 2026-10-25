@@ -59,6 +59,8 @@ const ALL_SKINS = [
   { id: 44, name: "Frankenstini Squalini", rarity: "Legendary", tag: "Halloween 2026" },
   { id: 45, name: "Vampire Dragini",       rarity: "Divine", tag: "Halloween 2026" },
   { id: 46, name: "Headlessini Pumpkini",  rarity: "Divine", tag: "Halloween 2026" },
+  { id: 47, name: "Cupiddini Cyberini",    rarity: "Mythic", tag: "Sportini" },
+  { id: 48, name: "Cupiddini Divinini",    rarity: "Divine", tag: "Sportini" },
 ];
 
 // Output dropdown: Limited and Mythic only (fusion-only tiers).

@@ -19,7 +19,7 @@ import { ensureAdminPlayerCreds, clearAdminPlayerCreds } from "@/lib/adminPlayer
 // Mirrors LIMITED_SKIN_IDS in drop_event_spawn (migration 31). Limited skins
 // are fusion-only and Divine is points-only, so neither may sit in a drop
 // pool; the RPC raises LIMITED_NOT_DROPPABLE if one is submitted.
-const NOT_DROPPABLE = new Set([22, 27, 31, 40, 45, 46]);
+const NOT_DROPPABLE = new Set([22, 27, 31, 40, 45, 46, 48]);
 
 const ALL_SKINS = [
   { id: 1 , name: "Noobini Lovini",        rarity: "Common" },
@@ -65,6 +65,8 @@ const ALL_SKINS = [
   { id: 44, name: "Frankenstini Squalini", rarity: "Legendary", tag: "Halloween 2026" },
   { id: 45, name: "Vampire Dragini",       rarity: "Divine", tag: "Halloween 2026" },
   { id: 46, name: "Headlessini Pumpkini",  rarity: "Divine", tag: "Halloween 2026" },
+  { id: 47, name: "Cupiddini Cyberini",    rarity: "Mythic", tag: "Sportini" },
+  { id: 48, name: "Cupiddini Divinini",    rarity: "Divine", tag: "Sportini" },
 ];
 
 const DROPPABLE_SKINS = ALL_SKINS.filter(s => !NOT_DROPPABLE.has(s.id));

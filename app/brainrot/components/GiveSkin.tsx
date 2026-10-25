@@ -53,6 +53,8 @@ const SKINS = [
   "Frankenstini Squalini",
   "Vampire Dragini",
   "Headlessini Pumpkini",
+  "Cupiddini Cyberini",
+  "Cupiddini Divinini",
 ];
 
 export default function GiveSkin() {
