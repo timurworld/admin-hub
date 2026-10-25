@@ -57,6 +57,7 @@ const SKINS = [
 
 export default function GiveSkin() {
   const [players, setPlayers] = useState<Player[]>([]);
+  const [knownSkins, setKnownSkins] = useState<Set<string>>(new Set());
   const [query, setQuery] = useState("");
   const [picked, setPicked] = useState<Player | null>(null);
   const [skin, setSkin] = useState("");
@@ -79,6 +80,14 @@ export default function GiveSkin() {
       if (data) setPlayers(data.map(p => ({ username: p.username, player_id: p.id })));
     }
     fetchPlayers();
+    // The skin_gifts trigger resolves a gift by looking the name up in
+    // skin_meta and returns quietly when it finds nothing, so a typo or an
+    // unregistered character looks identical to a successful send. Load the
+    // real list so the UI can refuse before inserting.
+    (async () => {
+      const { data } = await supabase.from("skin_meta").select("name");
+      if (data) setKnownSkins(new Set(data.map(r => (r.name as string).toLowerCase())));
+    })();
     const int = setInterval(fetchPlayers, 10_000);
     return () => clearInterval(int);
   }, []);
@@ -106,10 +115,24 @@ export default function GiveSkin() {
       setTimeout(() => setSuccess(null), 4000);
       return;
     }
+    if (knownSkins.size && !knownSkins.has(skin.trim().toLowerCase())) {
+      setSuccess({ ok: false, msg: `"${skin}" is not a registered skin — it would be silently dropped` });
+      setTimeout(() => setSuccess(null), 5000);
+      return;
+    }
+    const before = await supabase.from("inventory")
+      .select("id", { count: "exact", head: true }).eq("player_id", player.player_id);
     await supabase.from("skin_gifts").insert({
       game_id: GAME_ID, player_name: player.username.toLowerCase(), skin_name: skin,
     });
-    setSuccess({ ok: true, msg: `Sent "${skin}" to ${player.username}` });
+    // The trigger fires synchronously, but give it a beat before confirming.
+    await new Promise(r => setTimeout(r, 600));
+    const after = await supabase.from("inventory")
+      .select("id", { count: "exact", head: true }).eq("player_id", player.player_id);
+    const landed = (after.count ?? 0) > (before.count ?? 0);
+    setSuccess(landed
+      ? { ok: true, msg: `Sent "${skin}" to ${player.username}` }
+      : { ok: false, msg: `"${skin}" did not reach ${player.username} — nothing was added to their inventory` });
     setSkin(""); setQuery(""); setPicked(null); setOpen(false);
     setTimeout(() => setSuccess(null), 4000);
   };
