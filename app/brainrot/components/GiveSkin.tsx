@@ -50,7 +50,7 @@ const SKINS = [
   "Toastini Butterini",
   "Candini Bucketini",
   "Ghostini Mechini",
-  "Frankenstini Squalini",
+  "Frankenstini Sharkini",
   "Vampire Dragini",
   "Headlessini Pumpkini",
   "Cupiddini Cyberini",

@@ -56,7 +56,7 @@ const ALL_SKINS = [
   { id: 41, name: "Toastini Butterini",    rarity: "Rare", tag: "Lovini" },
   { id: 42, name: "Candini Bucketini",     rarity: "Common", tag: "Halloween 2026" },
   { id: 43, name: "Ghostini Mechini",      rarity: "Epic", tag: "Halloween 2026" },
-  { id: 44, name: "Frankenstini Squalini", rarity: "Legendary", tag: "Halloween 2026" },
+  { id: 44, name: "Frankenstini Sharkini", rarity: "Legendary", tag: "Halloween 2026" },
   { id: 45, name: "Vampire Dragini",       rarity: "Divine", tag: "Halloween 2026" },
   { id: 46, name: "Headlessini Pumpkini",  rarity: "Divine", tag: "Halloween 2026" },
   { id: 47, name: "Cupiddini Cyberini",    rarity: "Mythic", tag: "Sportini" },
